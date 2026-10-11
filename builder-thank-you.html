@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're In — The MRS™ Program Builder</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a0a0a; color: #f5f5f5; line-height: 1.6; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 24px; text-align: center; }
+  header { padding: 28px 0 12px; }
+  header .brand { font-size: 12px; letter-spacing: 3px; color: #d4af37; font-weight: 700; }
+  .hero { padding: 48px 0 64px; }
+  .check { width: 72px; height: 72px; line-height: 72px; border-radius: 50%; background: #d4af37; color: #0a0a0a; font-size: 36px; font-weight: 800; margin: 0 auto 28px; }
+  h1 { font-size: 36px; font-weight: 800; margin-bottom: 16px; }
+  h1 .gold { color: #d4af37; }
+  .sub { font-size: 18px; color: #bdbdbd; margin-bottom: 36px; }
+  .btn { display: inline-block; background: #d4af37; color: #0a0a0a; font-size: 19px; font-weight: 800; padding: 18px 48px; border-radius: 10px; text-decoration: none; transition: transform .15s ease; }
+  .btn:hover { transform: translateY(-2px); }
+  .how { margin-top: 28px; font-size: 15px; color: #8a8a8a; max-width: 480px; margin-left: auto; margin-right: auto; }
+  .how strong { color: #d6d6d6; }
+  section { padding: 40px 0; border-top: 1px solid #222; }
+  section p { font-size: 16px; color: #b5b5b5; margin-bottom: 12px; }
+  section p strong { color: #fff; }
+  .sub-note { font-size: 14px; color: #777; margin-top: 20px; }
+  .bookmark { background: #1c1a10; border: 1px solid #d4af37; border-radius: 14px; padding: 24px; margin: 0 auto 8px; max-width: 520px; }
+  .bookmark h3 { font-size: 18px; font-weight: 800; color: #d4af37; margin-bottom: 10px; }
+  .bookmark p { font-size: 15px; color: #d6d6d6; margin-bottom: 0; }
+  footer { padding: 28px 0 40px; border-top: 1px solid #222; font-size: 13px; color: #666; }
+  @media (max-width: 560px) { h1 { font-size: 28px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">MRS™ · METABOLIC REBUILD SYSTEM</div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="check">✓</div>
+    <h1>You're in. <span class="gold">Your builder's ready.</span></h1>
+    <p class="sub">Your subscription is active — open the app and start building.</p>
+    <a class="btn" id="launch-btn" href="#">Open the Builder App</a>
+    <p class="how" id="launch-note">Tap the button, then <strong>Share → Add to Home Screen</strong> — it lives on your phone like a real app, and your programs save automatically.</p>
+    <p class="sub-note">$36/month · Manage or cancel anytime from your Stripe receipt email.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="bookmark">
+      <h3>Bookmark this page</h3>
+      <p>New phone or cleared browser? Open this bookmark and tap the button above, you're back in. No login, no password, this page <strong>is</strong> your key.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p><strong>Quick start:</strong> enter your name at the top, tap A–E in each movement slot, and your workout builds itself. 78,125 combinations — you'll never do the same session twice.</p>
+    <p>Receipt and subscription details are on their way from Stripe.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Part of the Metabolic Rebuild System.<br>
+    Know Your Numbers. Change Your Life.
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // ============================================================
+  // DEPLOY CONFIG — Claude: set these two URLs.
+  // ============================================================
+  var WORKER_URL = "https://REPLACE_WITH_WORKER_URL";
+  var APP_URL = "https://REPLACE_WITH_APP_URL"; // the Pages URL serving the app shell
+
+  var btn = document.getElementById("launch-btn");
+  var note = document.getElementById("launch-note");
+
+  function params() {
+    var q = {};
+    (window.location.search || "").replace(/^\?/, "").split("&").forEach(function (pair) {
+      var kv = pair.split("=");
+      if (kv[0]) q[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || "");
+    });
+    return q;
+  }
+
+  var sessionId = params().session_id;
+  if (!sessionId) {
+    // Buyer landed here without a Stripe session (e.g. typed the URL directly).
+    note.innerHTML = "We couldn't confirm a checkout for this visit. If you just subscribed, your <strong>Stripe receipt email</strong> has your access link — otherwise complete checkout to get in.";
+    btn.style.opacity = "0.45";
+    btn.style.pointerEvents = "none";
+    return;
+  }
+
+  note.innerHTML = "Confirming your subscription…";
+
+  fetch(WORKER_URL + "/verify?session_id=" + encodeURIComponent(sessionId))
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (res && res.ok && res.token) {
+        // Token travels in the URL fragment: never sent to any server,
+        // never logged — the app reads it and stores it on-device.
+        btn.href = APP_URL + "#t=" + res.token;
+        note.innerHTML = "Tap the button, then <strong>Share → Add to Home Screen</strong> — it lives on your phone like a real app, and your programs save automatically.";
+      } else {
+        throw new Error("verify failed");
+      }
+    })
+    .catch(function () {
+      note.innerHTML = "We couldn't confirm an active subscription for that checkout. Check your <strong>Stripe receipt email</strong> for your access link, or contact support.";
+      btn.style.opacity = "0.45";
+      btn.style.pointerEvents = "none";
+    });
+})();
+</script>
+
+</body>
+</html>

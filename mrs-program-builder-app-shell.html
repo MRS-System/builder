@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MRS™ Builder">
+<title>MRS™ Program Builder</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: #0a0a0a; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0a0a0a; color: #f5f5f5; line-height: 1.5;
+    max-width: 520px; margin: 0 auto; min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .gold { color: #d4af37; }
+
+  /* Sticky header */
+  .app-header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10,10,10,.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid #222;
+    padding: 14px 20px; padding-top: calc(14px + env(safe-area-inset-top));
+    text-align: center;
+  }
+  .app-header .brand { font-size: 11px; letter-spacing: 3px; color: #d4af37; font-weight: 800; }
+  .app-header .title { font-size: 17px; font-weight: 800; margin-top: 2px; }
+
+  main { padding: 16px 16px 32px; }
+
+  .card {
+    background: #141414; border: 1px solid #262626; border-radius: 16px;
+    padding: 18px; margin-bottom: 14px;
+  }
+  .card h2 { font-size: 13px; letter-spacing: 2px; color: #d4af37; font-weight: 800; margin-bottom: 14px; }
+
+  /* Profile grid */
+  .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field label { display: block; font-size: 11px; letter-spacing: 1px; color: #8a8a8a; font-weight: 700; margin-bottom: 6px; }
+  .field input, .notes-input {
+    width: 100%; background: #0a0a0a; border: 1px solid #333; border-radius: 10px;
+    color: #fff; font-size: 16px; padding: 11px 12px; outline: none;
+  }
+  .field input:focus, .notes-input:focus { border-color: #d4af37; }
+
+  /* Slot cards */
+  .slot-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .slot-letter {
+    width: 30px; height: 30px; line-height: 30px; text-align: center; border-radius: 50%;
+    background: #d4af37; color: #0a0a0a; font-weight: 800; font-size: 15px; flex-shrink: 0;
+  }
+  .slot-pattern { font-size: 16px; font-weight: 700; }
+
+  .pills { display: flex; gap: 8px; margin-bottom: 12px; }
+  .pill {
+    flex: 1; padding: 10px 0; text-align: center; border-radius: 10px;
+    background: #0a0a0a; border: 1px solid #333; color: #bdbdbd;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .pill.active { background: #d4af37; border-color: #d4af37; color: #0a0a0a; }
+
+  .exercise {
+    font-size: 19px; font-weight: 800; color: #fff;
+    background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 12px;
+  }
+  .exercise .alt { display: block; font-size: 12px; color: #d4af37; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+
+  .set-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .notes-input { font-size: 16px; }
+
+  /* Combos footer card */
+  .combos { text-align: center; }
+  .combos .big { font-size: 34px; font-weight: 800; color: #d4af37; }
+  .combos p { font-size: 14px; color: #8a8a8a; margin-top: 6px; }
+
+  .reset-btn {
+    display: block; width: 100%; margin-top: 4px; padding: 14px;
+    background: transparent; border: 1px solid #333; border-radius: 12px;
+    color: #8a8a8a; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+
+  footer { text-align: center; padding: 8px 20px 32px; font-size: 12px; color: #555; }
+  footer .gold { font-weight: 700; }
+
+  /* Last time + volume */
+  .last-time { font-size: 13px; color: #d4af37; font-weight: 700; margin: -6px 0 12px; letter-spacing: 0.5px; }
+  .volume-card { text-align: center; border-color: #d4af37; }
+  .volume-card .big { font-size: 44px; font-weight: 800; color: #d4af37; }
+  .volume-card .unit { font-size: 18px; color: #8a8a8a; font-weight: 700; }
+  .shout-out { font-size: 17px; color: #f5f5f5; font-weight: 800; margin-top: 10px; line-height: 1.4; }
+  .shout-out .animal { color: #d4af37; }
+  .log-btn { display: block; width: 100%; margin-bottom: 14px; padding: 16px; background: #d4af37; border: none; border-radius: 12px; color: #0a0a0a; font-size: 17px; font-weight: 800; cursor: pointer; }
+
+  /* Program of the month + shuffle */
+  .potm { border-color: #d4af37; }
+  .kicker-new { display: inline-block; font-size: 11px; letter-spacing: 2px; font-weight: 800; color: #0a0a0a; background: #d4af37; padding: 4px 12px; border-radius: 12px; margin-bottom: 10px; }
+  .potm h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .potm p { font-size: 14px; color: #b5b5b5; margin-bottom: 14px; }
+  .btn-gold { display: block; width: 100%; background: #d4af37; color: #0a0a0a; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; padding: 13px; cursor: pointer; }
+  .shuffle-btn { display: block; width: 100%; margin-bottom: 14px; padding: 14px; background: transparent; border: 1px solid #d4af37; border-radius: 12px; color: #d4af37; font-size: 16px; font-weight: 800; cursor: pointer; }
+
+  /* Install hint */
+  #install-hint {
+    position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 100;
+    background: #1c1a10; border: 1px solid #d4af37; border-radius: 14px;
+    padding: 14px 16px; display: none; align-items: center; gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  }
+  #install-hint.show { display: flex; }
+  #install-hint .msg { flex: 1; font-size: 14px; color: #e8e8e8; }
+  #install-hint .msg strong { color: #d4af37; }
+  #install-hint button {
+    background: #d4af37; color: #0a0a0a; border: none; border-radius: 8px;
+    font-weight: 800; font-size: 14px; padding: 8px 14px; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* Loading / error states */
+  .loading { text-align: center; padding: 40px 20px; color: #8a8a8a; font-size: 15px; }
+  .loading .spinner {
+    width: 34px; height: 34px; margin: 0 auto 14px; border-radius: 50%;
+    border: 3px solid #262626; border-top-color: #d4af37;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err-card p { font-size: 14px; color: #b5b5b5; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<div id="install-hint">
+  <div class="msg"><strong>Install this app:</strong> tap Share <span style="font-size:16px;">&#8593;</span> then <strong>Add to Home Screen</strong>.</div>
+  <button id="hint-close">Got it</button>
+</div>
+
+<header class="app-header">
+  <div class="brand">MRS™ · METABOLIC REBUILD SYSTEM</div>
+  <div class="title">Program Builder</div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>YOUR PROGRAM</h2>
+    <div class="profile-grid">
+      <div class="field"><label>YOUR NAME</label><input id="f-name" type="text" placeholder="Your name" autocomplete="off"></div>
+      <div class="field"><label>PROGRAM</label><input id="f-program" type="text" placeholder="My program" autocomplete="off"></div>
+      <div class="field"><label>WEEK</label><input id="f-week" type="text" inputmode="numeric" placeholder="1" autocomplete="off"></div>
+      <div class="field"><label>CYCLE</label><input id="f-cycle" type="text" inputmode="numeric" placeholder="1" autocomplete="off"></div>
+    </div>
+  </section>
+
+  <section class="card potm" id="potm-card" style="display:none">
+    <div class="kicker-new">PROGRAM OF THE MONTH</div>
+    <h3 id="potm-name"></h3>
+    <p id="potm-desc"></p>
+    <button class="btn-gold" id="potm-load">Load this program</button>
+  </section>
+
+  <button class="shuffle-btn" id="shuffle-btn">&#127922; Shuffle my workout</button>
+
+  <div id="slots">
+    <div class="loading"><div class="spinner"></div>Loading your program…</div>
+  </div>
+
+  <button class="log-btn" id="log-btn">LOG THIS SESSION</button>
+
+  <section class="card volume-card" id="volume-card" style="display:none">
+    <h2>SESSION TOTAL</h2>
+    <div><span class="big" id="volume-num">0</span> <span class="unit">lbs</span></div>
+    <div class="shout-out" id="shout-out"></div>
+  </section>
+
+  <section class="card combos">
+    <div class="big">78,125</div>
+    <p>unique workout combinations in this builder.<br>You'll never do the same session twice.</p>
+  </section>
+
+  <button class="reset-btn" id="reset-btn">Start a fresh program</button>
+</main>
+
+<footer>
+  <span class="gold">MRS™</span> · Know Your Numbers. Change Your Life.
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ============================================================
+  // DEPLOY CONFIG — Claude: set this to your Cloudflare Worker URL.
+  // The exercise matrix (MRS IP) is NEVER in this file. It is
+  // fetched from the Worker, which only serves it to verified
+  // subscribers.
+  // ============================================================
+  var MATRIX_ENDPOINT = "https://REPLACE_WITH_WORKER_URL/matrix";
+
+  var TOKEN_KEY = "mrs-builder-token";
+  var STORE_KEY = "mrs-builder-v1";
+  var HISTORY_KEY = "mrs-builder-history-v1";
+  var HINT_KEY = "mrs-builder-hint-dismissed";
+  var LETTERS = ["A", "B", "C", "D", "E"];
+  var DEFAULT_OPTS = [0, 1, 1, 1, 2, 2, 2]; // matches the sheet's example picks
+
+  var SLOTS = null;     // filled from the Worker: [{slot, pattern, options[]}]
+  var PROGRAMS = null;  // filled from the Worker: {"2026-10": {...}}
+
+  function esc(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // Token arrives once via URL fragment (#t=...) from the thank-you
+  // page, then lives in localStorage. Sent as a Bearer header —
+  // no cookies, so no third-party-cookie issues across origins.
+  function getToken() {
+    var h = window.location.hash || "";
+    var m = h.match(/#t=([A-Za-z0-9\-_.]+)/);
+    if (m) {
+      try { localStorage.setItem(TOKEN_KEY, m[1]); } catch (e) {}
+      try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+      return m[1];
+    }
+    try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+  }
+
+  function showError(title, msg) {
+    document.getElementById("slots").innerHTML =
+      '<section class="card err-card"><h2>' + esc(title) + "</h2><p>" + esc(msg) + '</p>' +
+      '<button class="btn-gold" onclick="window.location.reload()">Try again</button></section>';
+  }
+
+  function boot() {
+    var token = getToken();
+    var headers = {};
+    if (token) headers["Authorization"] = "Bearer " + token;
+    fetch(MATRIX_ENDPOINT, { headers: headers })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 402) throw new Error("auth");
+        if (!r.ok) throw new Error("net");
+        return r.json();
+      })
+      .then(function (res) {
+        if (!res || !res.ok || !res.data || !res.data.slots) throw new Error("net");
+        if (res.token) {
+          try { localStorage.setItem(TOKEN_KEY, res.token); } catch (e) {}
+        }
+        init(res.data);
+      })
+      .catch(function (err) {
+        if (err && err.message === "auth") {
+          showError("SUBSCRIPTION NEEDED",
+            "We couldn't verify an active subscription for this device. Open your bookmarked launch link to restore access, or manage your subscription to fix payment.");
+        } else {
+          showError("CONNECTION ISSUE",
+            "Couldn't reach the program server. Check your connection and try again.");
+        }
+      });
+  }
+
+  function init(data) {
+    SLOTS = data.slots;
+    PROGRAMS = data.programs || {};
+
+    var state = loadState();
+
+    function defaultState() {
+      return {
+        name: "", program: "", week: "1", cycle: "1",
+        slots: SLOTS.map(function (m, i) {
+          return { o: DEFAULT_OPTS[i], sets: "", reps: "", weight: "", rest: "", notes: "" };
+        })
+      };
+    }
+
+    function loadState() {
+      try {
+        var raw = localStorage.getItem(STORE_KEY);
+        if (!raw) return defaultState();
+        var s = JSON.parse(raw);
+        if (!s.slots || s.slots.length !== SLOTS.length) return defaultState();
+        return s;
+      } catch (e) { return defaultState(); }
+    }
+
+    function save() {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function loadHistory() {
+      try {
+        var raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) { return {}; }
+    }
+
+    function saveHistory(h) {
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch (e) {}
+    }
+
+    var history = loadHistory();
+
+    function fmtDate(iso) {
+      try {
+        var d = new Date(iso);
+        return (d.getMonth()+1) + "/" + d.getDate();
+      } catch (e) { return ""; }
+    }
+
+    function animalFor(lbs) {
+      if (lbs >= 10000) return "an African elephant";
+      if (lbs >= 5000) return "a full-grown rhino";
+      if (lbs >= 2500) return "a hippo";
+      if (lbs >= 1000) return "a concert grand piano";
+      if (lbs >= 500) return "a grizzly bear";
+      return null;
+    }
+
+    function sessionVolume() {
+      var total = 0;
+      state.slots.forEach(function (st) {
+        var sets = parseFloat(st.sets) || 0;
+        var reps = parseFloat(st.reps) || 0;
+        var w = parseFloat(st.weight) || 0;
+        total += sets * reps * w;
+      });
+      return Math.round(total);
+    }
+
+    function renderVolume() {
+      var card = document.getElementById("volume-card");
+      var total = sessionVolume();
+      if (total <= 0) { card.style.display = "none"; return; }
+      card.style.display = "block";
+      document.getElementById("volume-num").textContent = total.toLocaleString();
+      var animal = animalFor(total);
+      document.getElementById("shout-out").innerHTML = animal
+        ? "You moved <span class='animal'>" + total.toLocaleString() + " lbs</span> today.<br>That\u2019s as much as " + animal + "."
+        : "You moved <span class='animal'>" + total.toLocaleString() + " lbs</span> today. Keep grinding.";
+    }
+
+    function render() {
+      // profile
+      document.getElementById("f-name").value = state.name;
+      document.getElementById("f-program").value = state.program;
+      document.getElementById("f-week").value = state.week;
+      document.getElementById("f-cycle").value = state.cycle;
+
+      // slots
+      var html = "";
+      SLOTS.forEach(function (m, i) {
+        var st = state.slots[i];
+        var pills = LETTERS.map(function (L, oi) {
+          return '<button class="pill' + (st.o === oi ? " active" : "") + '" data-slot="' + i + '" data-opt="' + oi + '">' + L + "</button>";
+        }).join("");
+        html +=
+          '<section class="card">' +
+            '<div class="slot-head"><span class="slot-letter">' + m.slot + '</span><span class="slot-pattern">' + esc(m.pattern) + "</span></div>" +
+            '<div class="pills">' + pills + "</div>" +
+            '<div class="exercise"><span class="alt">SELECTED EXERCISE</span>' + esc(m.options[st.o]) + "</div>" +
+            (function () {
+              var h = history[m.options[st.o]];
+              if (h && h.weight) {
+                return '<div class="last-time">LAST TIME: ' + esc(h.weight) + " lbs \u00d7 " + esc(h.reps) + " · " + fmtDate(h.date) + "</div>";
+              }
+              return "";
+            })() +
+            '<div class="set-grid">' +
+              '<div class="field"><label>SETS</label><input type="text" inputmode="numeric" data-slot="' + i + '" data-k="sets" value="' + esc(st.sets) + '" placeholder="–" autocomplete="off"></div>' +
+              '<div class="field"><label>REPS</label><input type="text" inputmode="numeric" data-slot="' + i + '" data-k="reps" value="' + esc(st.reps) + '" placeholder="–" autocomplete="off"></div>' +
+              '<div class="field"><label>LBS</label><input type="text" inputmode="numeric" data-slot="' + i + '" data-k="weight" value="' + esc(st.weight) + '" placeholder="–" autocomplete="off"></div>' +
+              '<div class="field"><label>REST</label><input type="text" data-slot="' + i + '" data-k="rest" value="' + esc(st.rest) + '" placeholder="–" autocomplete="off"></div>' +
+            "</div>" +
+            '<div class="field"><label>NOTES</label><input class="notes-input" type="text" data-slot="' + i + '" data-k="notes" value="' + esc(st.notes) + '" placeholder="Anything to remember…" autocomplete="off"></div>' +
+          "</section>";
+      });
+      document.getElementById("slots").innerHTML = html;
+      renderVolume();
+    }
+
+    // profile inputs
+    [["f-name", "name"], ["f-program", "program"], ["f-week", "week"], ["f-cycle", "cycle"]].forEach(function (pair) {
+      document.getElementById(pair[0]).addEventListener("input", function (e) {
+        state[pair[1]] = e.target.value;
+        save();
+      });
+    });
+
+    // delegated events for slots (works after re-render)
+    document.getElementById("slots").addEventListener("click", function (e) {
+      var t = e.target;
+      if (t.classList && t.classList.contains("pill")) {
+        var i = parseInt(t.getAttribute("data-slot"), 10);
+        state.slots[i].o = parseInt(t.getAttribute("data-opt"), 10);
+        save();
+        render();
+      }
+    });
+
+    document.getElementById("slots").addEventListener("input", function (e) {
+      var t = e.target;
+      if (t.getAttribute("data-slot") !== null && t.getAttribute("data-k")) {
+        var i = parseInt(t.getAttribute("data-slot"), 10);
+        state.slots[i][t.getAttribute("data-k")] = t.value;
+        save();
+      }
+    });
+
+    // ---- Program of the Month + Shuffle (retention) ----
+    function currentMonthKey() {
+      var d = new Date();
+      var m = d.getMonth() + 1;
+      return d.getFullYear() + "-" + (m < 10 ? "0" + m : m);
+    }
+
+    function activeProgram() {
+      var keys = Object.keys(PROGRAMS).sort();
+      var now = currentMonthKey();
+      var pick = null;
+      keys.forEach(function (k) { if (k <= now) pick = k; });
+      if (!pick) pick = keys[keys.length - 1]; // no drop for this month yet: show the latest drop
+      return PROGRAMS[pick];
+    }
+
+    function renderPotm() {
+      var prog = activeProgram();
+      var card = document.getElementById("potm-card");
+      if (!prog) { card.style.display = "none"; return; }
+      document.getElementById("potm-name").textContent = prog.name;
+      document.getElementById("potm-desc").textContent = prog.desc;
+      card.style.display = "block";
+      document.getElementById("potm-load").onclick = function () {
+        if (confirm("Load " + prog.name + "? This replaces your current picks.")) {
+          state.slots = prog.slots.map(function (s) {
+            return { o: s.o, sets: s.sets, reps: s.reps, weight: s.weight || "", rest: s.rest, notes: s.notes };
+          });
+          save();
+          render();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      };
+    }
+
+    document.getElementById("shuffle-btn").addEventListener("click", function () {
+      state.slots.forEach(function (st) {
+        st.o = Math.floor(Math.random() * 5);
+      });
+      save();
+      render();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // log session -> save per-exercise history
+    document.getElementById("log-btn").addEventListener("click", function () {
+      var now = new Date().toISOString();
+      var logged = 0;
+      state.slots.forEach(function (st, i) {
+        var key = SLOTS[i].options[st.o];
+        if (st.weight || st.reps) {
+          history[key] = { weight: st.weight || "", reps: st.reps || "", sets: st.sets || "", date: now };
+          logged++;
+        }
+      });
+      saveHistory(history);
+      render();
+      var total = sessionVolume();
+      var animal = animalFor(total);
+      var msg = logged + " exercises logged." + (animal ? " You moved " + total.toLocaleString() + " lbs, as much as " + animal + "." : "");
+      alert(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // reset
+    document.getElementById("reset-btn").addEventListener("click", function () {
+      if (confirm("Start fresh? This clears your current program.")) {
+        state = defaultState();
+        save();
+        render();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    // install hint (iOS)
+    var inStandalone = window.navigator.standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches;
+    var dismissed = false;
+    try { dismissed = localStorage.getItem(HINT_KEY) === "1"; } catch (e) {}
+    if (!inStandalone && !dismissed) {
+      var hint = document.getElementById("install-hint");
+      hint.classList.add("show");
+      document.getElementById("hint-close").addEventListener("click", function () {
+        hint.classList.remove("show");
+        try { localStorage.setItem(HINT_KEY, "1"); } catch (e) {}
+      });
+    }
+
+    renderPotm();
+    render();
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
