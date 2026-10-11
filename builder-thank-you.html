@@ -96,7 +96,7 @@
   var sessionId = params().session_id;
   if (!sessionId) {
     // Buyer landed here without a Stripe session (e.g. typed the URL directly).
-    note.innerHTML = "We couldn't confirm a checkout for this visit. If you just subscribed, your <strong>Stripe receipt email</strong> has your access link — otherwise complete checkout to get in.";
+    note.innerHTML = "We couldn't confirm a checkout for this visit. Already subscribed? Open the page you <strong>bookmarked</strong> after checkout — otherwise complete checkout to get in.";
     btn.style.opacity = "0.45";
     btn.style.pointerEvents = "none";
     return;
@@ -117,7 +117,7 @@
       }
     })
     .catch(function () {
-      note.innerHTML = "We couldn't confirm an active subscription for that checkout. Check your <strong>Stripe receipt email</strong> for your access link, or contact support.";
+      note.innerHTML = "We couldn't confirm an active subscription for that checkout. If your payment failed, update it from your Stripe billing email, then reopen this page.";
       btn.style.opacity = "0.45";
       btn.style.pointerEvents = "none";
     });
