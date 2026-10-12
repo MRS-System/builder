@@ -44,7 +44,7 @@
     <h1>You're in. <span class="gold">Your builder's ready.</span></h1>
     <p class="sub">Your subscription is active — open the app and start building.</p>
     <a class="btn" id="launch-btn" href="#">Open the Builder App</a>
-    <p class="how" id="launch-note">Tap the button, then <strong>Share → Add to Home Screen</strong> — it lives on your phone like a real app, and your programs save automatically.</p>
+    <p class="how" id="launch-note">Tap the button to open the app, then from the app tap <strong>Share → Add to Home Screen</strong> — it lives on your phone like a real app, and your programs save automatically.</p>
     <p class="sub-note">$36/month · Manage or cancel anytime from your Stripe receipt email.</p>
   </div>
 </div>
@@ -111,7 +111,7 @@
         // Token travels in the URL fragment: never sent to any server,
         // never logged — the app reads it and stores it on-device.
         btn.href = APP_URL + "#t=" + res.token;
-        note.innerHTML = "Tap the button, then <strong>Share → Add to Home Screen</strong> — it lives on your phone like a real app, and your programs save automatically.";
+        note.innerHTML = "Tap the button to open the app, then from the app tap <strong>Share → Add to Home Screen</strong> — it lives on your phone like a real app, and your programs save automatically.";
       } else {
         throw new Error("verify failed");
       }

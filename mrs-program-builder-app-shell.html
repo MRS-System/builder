@@ -214,18 +214,21 @@
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  // Token arrives once via URL fragment (#t=...) from the thank-you
-  // page, then lives in localStorage. Sent as a Bearer header —
-  // no cookies, so no third-party-cookie issues across origins.
-  function getToken() {
-    var h = window.location.hash || "";
-    var m = h.match(/#t=([A-Za-z0-9\-_.]+)/);
-    if (m) {
-      try { localStorage.setItem(TOKEN_KEY, m[1]); } catch (e) {}
-      try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
-      return m[1];
-    }
-    try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+  // Token arrives via URL fragment (#t=...) from the thank-you page and is
+  // also saved in localStorage. Sent as a Bearer header — no cookies.
+  // The link is NEVER erased: iOS "Add to Home Screen" bookmarks the current
+  // address, and a Home Screen app has its own separate storage, so the pass
+  // has to travel in the link. Order: the link's pass first (freshest — e.g.
+  // a restore from the bookmarked thank-you page), then the saved one (fresh
+  // from the last open — e.g. a Home Screen link whose pass has aged out).
+  function candidateTokens() {
+    var out = [];
+    var m = (window.location.hash || "").match(/#t=([A-Za-z0-9\-_.]+)/);
+    if (m) out.push(m[1]);
+    var saved = null;
+    try { saved = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+    if (saved && out.indexOf(saved) === -1) out.push(saved);
+    return out;
   }
 
   function showError(title, msg) {
@@ -235,15 +238,20 @@
   }
 
   function boot() {
-    var token = getToken();
-    var headers = {};
-    if (token) headers["Authorization"] = "Bearer " + token;
-    fetch(MATRIX_ENDPOINT, { headers: headers })
-      .then(function (r) {
-        if (r.status === 401 || r.status === 402) throw new Error("auth");
+    var tokens = candidateTokens();
+    function attempt(i) {
+      var headers = {};
+      if (tokens[i]) headers["Authorization"] = "Bearer " + tokens[i];
+      return fetch(MATRIX_ENDPOINT, { headers: headers }).then(function (r) {
+        if (r.status === 401 || r.status === 402) {
+          if (i + 1 < tokens.length) return attempt(i + 1); // that pass was refused — try the next one
+          throw new Error("auth");
+        }
         if (!r.ok) throw new Error("net");
         return r.json();
-      })
+      });
+    }
+    attempt(0)
       .then(function (res) {
         if (!res || !res.ok || !res.data || !res.data.slots) throw new Error("net");
         if (res.token) {
