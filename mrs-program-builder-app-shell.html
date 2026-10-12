@@ -71,7 +71,18 @@
   }
   .exercise .alt { display: block; font-size: 12px; color: #d4af37; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
 
-  .set-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .set-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .set-grid .field input { padding: 11px 6px; text-align: center; }
+  .set-grid .field label { text-align: center; letter-spacing: 0.5px; }
+
+  /* Goal picker + RPE guidance */
+  .goal-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .goal-pills .pill { padding: 12px 0; }
+  .goal-desc { font-size: 14px; color: #d6d6d6; font-weight: 600; margin-bottom: 10px; }
+  .rpe-explain { font-size: 13px; color: #8a8a8a; line-height: 1.5; }
+  .rpe-explain strong { color: #d4af37; }
+  .rpe-hint { font-size: 13px; color: #bdbdbd; margin: -2px 0 10px; }
+  .rpe-hint strong { color: #d4af37; }
   .notes-input { font-size: 16px; }
 
   /* Combos footer card */
@@ -156,6 +167,13 @@
     </div>
   </section>
 
+  <section class="card" id="goal-card" style="display:none">
+    <h2>YOUR GOAL</h2>
+    <div class="goal-pills" id="goal-pills"></div>
+    <p class="goal-desc" id="goal-desc"></p>
+    <p class="rpe-explain"><strong>RPE</strong> = how hard a set feels, 1&ndash;10. <strong>RPE 8 = you could do 2 more good reps.</strong> Pick a weight that lands you there &mdash; that's how heavy to go.</p>
+  </section>
+
   <section class="card potm" id="potm-card" style="display:none">
     <div class="kicker-new">PROGRAM OF THE MONTH</div>
     <h3 id="potm-name"></h3>
@@ -212,6 +230,9 @@
 
   var SLOTS = null;     // filled from the Worker: [{slot, pattern, options[]}]
   var PROGRAMS = null;  // filled from the Worker: {"2026-10": {...}}
+  var GOALS = [];       // filled from the Worker: [{id, label, desc, slots[7]: {sets, reps, rest, rpe, cue}}]
+  var DEFAULT_GOAL = "hypertrophy";
+  var RX_KEYS = ["sets", "reps", "rest", "rpe"]; // the prescription a goal fills in
 
   function esc(str) {
     return String(str == null ? "" : str)
@@ -280,16 +301,39 @@
   function init(data) {
     SLOTS = data.slots;
     PROGRAMS = data.programs || {};
+    GOALS = Array.isArray(data.goals) ? data.goals : [];
+
+    function goalById(id) {
+      for (var gi = 0; gi < GOALS.length; gi++) if (GOALS[gi].id === id) return GOALS[gi];
+      return null;
+    }
+
+    // Copy a goal's sets / reps / rest / RPE (+ coaching cue) into every slot.
+    // onlyBlank: fill empty boxes only (used to upgrade older saved programs).
+    function applyGoal(st, goalId, onlyBlank) {
+      var g = goalById(goalId);
+      if (!g) return;
+      st.slots.forEach(function (sl, i) {
+        var rx = g.slots[i] || {};
+        RX_KEYS.forEach(function (k) {
+          if (!onlyBlank || !sl[k]) sl[k] = rx[k] || "";
+        });
+        if (!onlyBlank || !sl.cue) sl.cue = rx.cue || "";
+      });
+      if (!onlyBlank) st.goal = goalId;
+    }
 
     var state = loadState();
 
     function defaultState() {
-      return {
-        name: "", program: "", week: "1", cycle: "1",
+      var st = {
+        name: "", program: "", week: "1", cycle: "1", goal: "",
         slots: SLOTS.map(function (m, i) {
-          return { o: DEFAULT_OPTS[i], sets: "", reps: "", weight: "", rest: "", notes: "" };
+          return { o: DEFAULT_OPTS[i], sets: "", reps: "", weight: "", rest: "", rpe: "", cue: "", notes: "" };
         })
       };
+      if (goalById(DEFAULT_GOAL)) applyGoal(st, DEFAULT_GOAL, false);
+      return st;
     }
 
     function loadState() {
@@ -298,6 +342,12 @@
         if (!raw) return defaultState();
         var s = JSON.parse(raw);
         if (!s.slots || s.slots.length !== SLOTS.length) return defaultState();
+        // Programs saved before goals existed: keep everything they typed and
+        // fill only the empty boxes, so no slot is ever left blank.
+        if (!s.goal && goalById(DEFAULT_GOAL)) {
+          var untouched = s.slots.every(function (sl) { return !sl.sets && !sl.reps && !sl.rest; });
+          applyGoal(s, DEFAULT_GOAL, !untouched);
+        }
         return s;
       } catch (e) { return defaultState(); }
     }
@@ -358,7 +408,37 @@
         : "You moved <span class='animal'>" + total.toLocaleString() + " lbs</span> today. Keep grinding.";
     }
 
+    // Plain-English meaning of an RPE target, e.g. "8" -> "about 2 reps left in the tank".
+    function rpeHint(st) {
+      var nums = String(st.rpe || "").match(/\d+(\.\d+)?/g);
+      if (!nums) return "";
+      var timed = /^\s*\d+\s*s\b/i.test(String(st.reps || ""));
+      var lo = parseFloat(nums[0]), hi = parseFloat(nums[nums.length - 1]);
+      var meaning;
+      if (timed) meaning = hi >= 9 ? "near all-out" : hi >= 8 ? "hard, steady effort" : "controlled, smooth effort";
+      else if (hi >= 10) meaning = "all-out, nothing left";
+      else {
+        var a = 10 - hi, b = 10 - lo;
+        var left = a === b ? String(a) : a + "\u2013" + b;
+        meaning = "stop with about " + left + " good rep" + (b === 1 ? "" : "s") + " left in the tank";
+      }
+      return '<div class="rpe-hint"><strong>RPE ' + esc(st.rpe) + "</strong> \u00b7 " + esc(meaning) +
+        (st.cue ? " \u00b7 " + esc(st.cue) : "") + "</div>";
+    }
+
+    function renderGoal() {
+      var card = document.getElementById("goal-card");
+      if (!GOALS.length) { card.style.display = "none"; return; }
+      card.style.display = "block";
+      document.getElementById("goal-pills").innerHTML = GOALS.map(function (g) {
+        return '<button class="pill' + (state.goal === g.id ? " active" : "") + '" data-goal="' + esc(g.id) + '">' + esc(g.label) + "</button>";
+      }).join("");
+      var g = goalById(state.goal);
+      document.getElementById("goal-desc").textContent = g ? g.desc : "Pick a goal and your sets, reps, rest and RPE fill in for you.";
+    }
+
     function render() {
+      renderGoal();
       // profile
       document.getElementById("f-name").value = state.name;
       document.getElementById("f-program").value = state.program;
@@ -389,7 +469,9 @@
               '<div class="field"><label>REPS</label><input type="text" inputmode="numeric" data-slot="' + i + '" data-k="reps" value="' + esc(st.reps) + '" placeholder="–" autocomplete="off"></div>' +
               '<div class="field"><label>LBS</label><input type="text" inputmode="numeric" data-slot="' + i + '" data-k="weight" value="' + esc(st.weight) + '" placeholder="–" autocomplete="off"></div>' +
               '<div class="field"><label>REST</label><input type="text" data-slot="' + i + '" data-k="rest" value="' + esc(st.rest) + '" placeholder="–" autocomplete="off"></div>' +
+              '<div class="field"><label>RPE</label><input type="text" inputmode="decimal" data-slot="' + i + '" data-k="rpe" value="' + esc(st.rpe) + '" placeholder="–" autocomplete="off"></div>' +
             "</div>" +
+            rpeHint(st) +
             '<div class="field"><label>NOTES</label><input class="notes-input" type="text" data-slot="' + i + '" data-k="notes" value="' + esc(st.notes) + '" placeholder="Anything to remember…" autocomplete="off"></div>' +
           "</section>";
       });
@@ -403,6 +485,23 @@
         state[pair[1]] = e.target.value;
         save();
       });
+    });
+
+    // goal picker: fills sets / reps / rest / RPE for every slot.
+    // Exercises, weights and notes are never touched.
+    document.getElementById("goal-pills").addEventListener("click", function (e) {
+      var id = e.target && e.target.getAttribute && e.target.getAttribute("data-goal");
+      if (!id || id === state.goal) return;
+      var cur = goalById(state.goal);
+      var edited = state.slots.some(function (sl, i) {
+        var rx = cur ? (cur.slots[i] || {}) : {};
+        return RX_KEYS.some(function (k) { return (sl[k] || "") !== (rx[k] || ""); });
+      });
+      var g = goalById(id);
+      if (edited && !confirm("Switch to " + g.label + "? This replaces your sets, reps, rest and RPE. Your exercises and weights stay.")) return;
+      applyGoal(state, id, false);
+      save();
+      render();
     });
 
     // delegated events for slots (works after re-render)
@@ -422,6 +521,13 @@
         var i = parseInt(t.getAttribute("data-slot"), 10);
         state.slots[i][t.getAttribute("data-k")] = t.value;
         save();
+        if (t.getAttribute("data-k") === "rpe" || t.getAttribute("data-k") === "reps") {
+          var card = t.closest("section");
+          var old = card && card.querySelector(".rpe-hint");
+          var html = rpeHint(state.slots[i]);
+          if (old) old.outerHTML = html || "";
+          else if (html && card) card.querySelector(".set-grid").insertAdjacentHTML("afterend", html);
+        }
       }
     });
 
@@ -451,8 +557,9 @@
       document.getElementById("potm-load").onclick = function () {
         if (confirm("Load " + prog.name + "? This replaces your current picks.")) {
           state.slots = prog.slots.map(function (s) {
-            return { o: s.o, sets: s.sets, reps: s.reps, weight: s.weight || "", rest: s.rest, notes: s.notes };
+            return { o: s.o, sets: s.sets, reps: s.reps, weight: s.weight || "", rest: s.rest, rpe: s.rpe || "", cue: s.cue || "", notes: s.notes };
           });
+          state.goal = prog.goal || "";
           save();
           render();
           window.scrollTo({ top: 0, behavior: "smooth" });
