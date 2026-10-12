@@ -86,6 +86,8 @@
   }
 
   footer { text-align: center; padding: 8px 20px 32px; font-size: 12px; color: #555; }
+  footer a, .manage-link { color: #d4af37; text-decoration: underline; }
+  .manage-link { display: block; text-align: center; margin-top: 12px; font-size: 14px; font-weight: 700; }
   footer .gold { font-weight: 700; }
 
   /* Last time + volume */
@@ -184,7 +186,8 @@
 </main>
 
 <footer>
-  <span class="gold">MRS™</span> · Know Your Numbers. Change Your Life.
+  <span class="gold">MRS™</span> · Know Your Numbers. Change Your Life.<br>
+  <a href="https://billing.stripe.com/p/login/28EcN4a9G95t5gV3CWcQU00" target="_blank" rel="noopener">Manage or cancel subscription</a>
 </footer>
 
 <script>
@@ -198,6 +201,7 @@
   // subscribers.
   // ============================================================
   var MATRIX_ENDPOINT = "https://mrs-builder-gate.mrs-system.workers.dev/matrix";
+  var PORTAL_URL = "https://billing.stripe.com/p/login/28EcN4a9G95t5gV3CWcQU00"; // Stripe Customer Portal: update card, cancel
 
   var TOKEN_KEY = "mrs-builder-token";
   var STORE_KEY = "mrs-builder-v1";
@@ -232,10 +236,12 @@
     return out;
   }
 
-  function showError(title, msg) {
+  function showError(title, msg, withManage) {
     document.getElementById("slots").innerHTML =
       '<section class="card err-card"><h2>' + esc(title) + "</h2><p>" + esc(msg) + '</p>' +
-      '<button class="btn-gold" onclick="window.location.reload()">Try again</button></section>';
+      '<button class="btn-gold" onclick="window.location.reload()">Try again</button>' +
+      (withManage ? '<a class="manage-link" href="' + PORTAL_URL + '" target="_blank" rel="noopener">Manage subscription / update card</a>' : '') +
+      '</section>';
   }
 
   function boot() {
@@ -263,7 +269,7 @@
       .catch(function (err) {
         if (err && err.message === "auth") {
           showError("SUBSCRIPTION NEEDED",
-            "We couldn't verify an active subscription for this device. Open your bookmarked launch link to restore access, or manage your subscription to fix payment.");
+            "We couldn't verify an active subscription for this device. Open your bookmarked launch link to restore access, or manage your subscription to fix payment.", true);
         } else {
           showError("CONNECTION ISSUE",
             "Couldn't reach the program server. Check your connection and try again.");
