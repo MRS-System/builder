@@ -415,13 +415,34 @@
       } catch (e) { return ""; }
     }
 
-    function animalFor(lbs) {
-      if (lbs >= 10000) return "an African elephant";
-      if (lbs >= 5000) return "a full-grown rhino";
-      if (lbs >= 2500) return "a hippo";
-      if (lbs >= 1000) return "a concert grand piano";
-      if (lbs >= 500) return "a grizzly bear";
-      return null;
+    // Session-total comparisons: cars, trucks, planes and animals, with
+    // approximate real weights. Picks something the lifter actually beat,
+    // varied by total so it isn't the same line every session.
+    var COMPARISONS = [
+      [250, "a giant panda"],
+      [600, "a grizzly bear"],
+      [850, "a Harley-Davidson Road Glide"],
+      [990, "a Steinway concert grand piano"],
+      [1500, "a Holstein dairy cow"],
+      [2340, "a Mazda MX-5 Miata"],
+      [3800, "a Ford Mustang GT"],
+      [4400, "a 4-door Jeep Wrangler"],
+      [5000, "a white rhino"],
+      [5600, "a Chevy Tahoe"],
+      [6600, "a Tesla Cybertruck"],
+      [9000, "a GMC Hummer EV"],
+      [12000, "a bull African elephant"],
+      [25000, "a school bus"],
+      [80000, "a fully loaded 18-wheeler"],
+      [91000, "an empty Boeing 737"]
+    ];
+    function comparisonFor(lbs) {
+      var beat = COMPARISONS.filter(function (c) { return c[0] <= lbs; });
+      if (!beat.length) return null;
+      var near = beat.filter(function (c) { return c[0] >= lbs * 0.5; });
+      var pool = near.length ? near : [beat[beat.length - 1]];
+      var c = pool[Math.round(lbs) % pool.length];
+      return c[1] + " (~" + c[0].toLocaleString() + " lbs)";
     }
 
     function sessionVolume() {
@@ -441,9 +462,9 @@
       if (total <= 0) { card.style.display = "none"; return; }
       card.style.display = "block";
       document.getElementById("volume-num").textContent = total.toLocaleString();
-      var animal = animalFor(total);
-      document.getElementById("shout-out").innerHTML = animal
-        ? "You moved <span class='animal'>" + total.toLocaleString() + " lbs</span> today.<br>That\u2019s as much as " + animal + "."
+      var cmp = comparisonFor(total);
+      document.getElementById("shout-out").innerHTML = cmp
+        ? "You moved <span class='animal'>" + total.toLocaleString() + " lbs</span> today.<br>That\u2019s more than " + esc(cmp) + "."
         : "You moved <span class='animal'>" + total.toLocaleString() + " lbs</span> today. Keep grinding.";
     }
 
@@ -560,6 +581,7 @@
         var i = parseInt(t.getAttribute("data-slot"), 10);
         state.slots[i][t.getAttribute("data-k")] = t.value;
         save();
+        if (/^(sets|reps|weight)$/.test(t.getAttribute("data-k"))) renderVolume();
         if (t.getAttribute("data-k") === "rpe" || t.getAttribute("data-k") === "reps") {
           var card = t.closest("section");
           var old = card && card.querySelector(".rpe-hint");
@@ -788,8 +810,8 @@
       render();
       renderSaved();
       var total = sessionVolume();
-      var animal = animalFor(total);
-      var msg = logged + " exercises logged." + (animal ? " You moved " + total.toLocaleString() + " lbs, as much as " + animal + "." : "") +
+      var cmp = comparisonFor(total);
+      var msg = logged + " exercise" + (logged === 1 ? "" : "s") + " logged." + (cmp ? " You moved " + total.toLocaleString() + " lbs \u2014 more than " + cmp + "." : "") +
         (savedOk ? "\n\nSaved to My Programs as \u201c" + savedAs + "\u201d." : "");
       alert(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
