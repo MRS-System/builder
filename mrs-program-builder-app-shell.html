@@ -94,6 +94,16 @@
   .lib-item li { padding: 2px 0; display: flex; gap: 8px; }
   .lib-item li b { color: #d4af37; flex: 0 0 14px; }
   .btn-outline { display: block; width: 100%; background: transparent; color: #d4af37; border: 1px solid #d4af37; border-radius: 10px; font-size: 15px; font-weight: 800; padding: 11px; cursor: pointer; }
+  /* My Programs */
+  .saved-item { display: flex; align-items: center; gap: 8px; border-top: 1px solid #262626; padding: 10px 0; }
+  .saved-item:first-child { border-top: none; }
+  .saved-item .info { flex: 1; min-width: 0; }
+  .saved-item .info b { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-item .info span { font-size: 12px; color: #8a8a8a; }
+  .saved-item button { flex-shrink: 0; background: transparent; border: 1px solid #333; border-radius: 8px; color: #d6d6d6; font-size: 14px; font-weight: 700; padding: 8px 12px; cursor: pointer; }
+  .saved-item button.load { border-color: #d4af37; color: #d4af37; }
+  .saved-empty { font-size: 13px; color: #8a8a8a; margin-bottom: 12px; }
+  .saved-status { font-size: 13px; color: #d4af37; font-weight: 700; text-align: center; margin-top: 8px; min-height: 1px; }
   .rpe-hint { font-size: 13px; color: #bdbdbd; margin: -2px 0 10px; }
   .rpe-hint strong { color: #d4af37; }
   .notes-input { font-size: 16px; }
@@ -194,6 +204,13 @@
     <button class="btn-gold" id="potm-load">Load this program</button>
   </section>
 
+  <section class="card" id="saved-card" style="display:none">
+    <h2>MY PROGRAMS</h2>
+    <div id="saved-list"></div>
+    <button class="btn-outline" id="save-btn">Save this program</button>
+    <div class="saved-status" id="saved-status"></div>
+  </section>
+
   <section class="card" id="lib-card" style="display:none">
     <h2>READY-MADE WORKOUTS</h2>
     <div class="lib-tabs" id="lib-tabs"></div>
@@ -244,6 +261,7 @@
   var STORE_KEY = "mrs-builder-v1";
   var HISTORY_KEY = "mrs-builder-history-v1";
   var HINT_KEY = "mrs-builder-hint-dismissed";
+  var SAVED_KEY = "mrs-builder-saved-v1"; // My Programs: [{name, goal, date, slots}]
   var LETTERS = ["A", "B", "C", "D", "E"];
   var DEFAULT_OPTS = [0, 1, 1, 1, 2, 2, 2]; // matches the sheet's example picks
 
@@ -588,6 +606,93 @@
       };
     }
 
+    // ---- My Programs: save a program by name and come back to it later ----
+    function loadSaved() {
+      try { var raw = localStorage.getItem(SAVED_KEY); var v = raw ? JSON.parse(raw) : []; return Array.isArray(v) ? v : []; }
+      catch (e) { return []; }
+    }
+    function storeSaved(list) {
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+    }
+    function findSaved(list, name) {
+      var key = String(name).trim().toLowerCase();
+      for (var k = 0; k < list.length; k++) if (String(list[k].name).trim().toLowerCase() === key) return k;
+      return -1;
+    }
+    function fmtLong(iso) {
+      try { return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; }
+    }
+    // Save (or update) the current program under `name`.
+    function saveProgram(name) {
+      var list = loadSaved();
+      var rec = { name: name, goal: state.goal || "", date: new Date().toISOString(),
+                  slots: JSON.parse(JSON.stringify(state.slots)) };
+      var at = findSaved(list, name);
+      if (at >= 0) list.splice(at, 1);
+      list.unshift(rec);
+      return storeSaved(list);
+    }
+    function setSavedStatus(msg) {
+      var el = document.getElementById("saved-status");
+      el.textContent = msg;
+      clearTimeout(setSavedStatus.t);
+      setSavedStatus.t = setTimeout(function () { el.textContent = ""; }, 4000);
+    }
+    function renderSaved() {
+      document.getElementById("saved-card").style.display = "block";
+      var list = loadSaved();
+      document.getElementById("saved-list").innerHTML = list.length
+        ? list.map(function (r, k) {
+            var g = goalById(r.goal);
+            return '<div class="saved-item"><div class="info"><b>' + esc(r.name) + "</b><span>Saved " + esc(fmtLong(r.date)) + (g ? " \u00b7 " + esc(g.label) : "") + "</span></div>" +
+              '<button class="load" data-saved-load="' + k + '">Load</button>' +
+              '<button data-saved-del="' + k + '" aria-label="Delete ' + esc(r.name) + '">Delete</button></div>';
+          }).join("")
+        : '<p class="saved-empty">Like a program? Save it here and run it again anytime. Programs you log are saved automatically.</p>';
+    }
+
+    document.getElementById("save-btn").addEventListener("click", function () {
+      var name = String(state.program || "").trim();
+      if (!name) {
+        var d = new Date();
+        name = prompt("Name this program (e.g. Oct 26):", (d.toLocaleDateString(undefined, { month: "short", day: "numeric" })));
+        if (name == null) return;
+        name = String(name).trim();
+        if (!name) return;
+        state.program = name;
+        document.getElementById("f-program").value = name;
+        save();
+      }
+      var list = loadSaved();
+      if (findSaved(list, name) >= 0 && !confirm('Update "' + name + '" with what\u2019s on screen now?')) return;
+      if (!saveProgram(name)) { alert("Couldn't save \u2014 your phone's storage is full."); return; }
+      renderSaved();
+      setSavedStatus('Saved \u201c' + name + '\u201d \u2713');
+    });
+
+    document.getElementById("saved-list").addEventListener("click", function (e) {
+      var t = e.target; if (!t || !t.getAttribute) return;
+      var list = loadSaved();
+      var li = t.getAttribute("data-saved-load"), di = t.getAttribute("data-saved-del");
+      if (li != null) {
+        var r = list[parseInt(li, 10)];
+        if (!r || !r.slots || r.slots.length !== SLOTS.length) return;
+        if (!confirm("Load " + r.name + "? This replaces what\u2019s on screen.")) return;
+        state.slots = JSON.parse(JSON.stringify(r.slots));
+        state.goal = r.goal || "";
+        state.program = r.name;
+        save();
+        render();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (di != null) {
+        var rd = list[parseInt(di, 10)];
+        if (!rd || !confirm("Delete " + rd.name + " from My Programs?")) return;
+        list.splice(parseInt(di, 10), 1);
+        storeSaved(list);
+        renderSaved();
+      }
+    });
+
     // ---- Ready-made workouts ----
     // Each library entry is one line in the exercise list: name, goal and 7
     // letters (A–E for slots A–G). Sets / reps / rest / RPE come from the goal;
@@ -665,16 +770,27 @@
       var logged = 0;
       state.slots.forEach(function (st, i) {
         var key = SLOTS[i].options[st.o];
-        if (st.weight || st.reps) {
+        // Reps are pre-filled by the goal now, so only a typed weight counts as
+        // "done" — otherwise a skipped exercise would wipe its LAST TIME.
+        if (st.weight) {
           history[key] = { weight: st.weight || "", reps: st.reps || "", sets: st.sets || "", date: now };
           logged++;
         }
       });
       saveHistory(history);
+      var savedAs = String(state.program || "").trim();
+      if (!savedAs) {
+        savedAs = "Workout " + new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        state.program = savedAs;
+        save();
+      }
+      var savedOk = saveProgram(savedAs);
       render();
+      renderSaved();
       var total = sessionVolume();
       var animal = animalFor(total);
-      var msg = logged + " exercises logged." + (animal ? " You moved " + total.toLocaleString() + " lbs, as much as " + animal + "." : "");
+      var msg = logged + " exercises logged." + (animal ? " You moved " + total.toLocaleString() + " lbs, as much as " + animal + "." : "") +
+        (savedOk ? "\n\nSaved to My Programs as \u201c" + savedAs + "\u201d." : "");
       alert(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -706,6 +822,7 @@
     renderPotm();
     render();
     renderLibrary();
+    renderSaved();
   }
 
   boot();
