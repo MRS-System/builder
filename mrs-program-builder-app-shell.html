@@ -81,6 +81,19 @@
   .goal-desc { font-size: 14px; color: #d6d6d6; font-weight: 600; margin-bottom: 10px; }
   .rpe-explain { font-size: 13px; color: #8a8a8a; line-height: 1.5; }
   .rpe-explain strong { color: #d4af37; }
+  /* Ready-made workouts */
+  .lib-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .lib-tabs .pill { font-size: 14px; padding: 9px 0; }
+  .lib-item { border-top: 1px solid #262626; padding: 12px 0; }
+  .lib-item:first-child { border-top: none; padding-top: 0; }
+  .lib-item h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+  .lib-item p { font-size: 13px; color: #b5b5b5; margin-bottom: 8px; }
+  .lib-item details { font-size: 13px; color: #8a8a8a; margin-bottom: 10px; }
+  .lib-item summary { cursor: pointer; color: #d4af37; font-weight: 700; }
+  .lib-item ol { list-style: none; margin-top: 6px; }
+  .lib-item li { padding: 2px 0; display: flex; gap: 8px; }
+  .lib-item li b { color: #d4af37; flex: 0 0 14px; }
+  .btn-outline { display: block; width: 100%; background: transparent; color: #d4af37; border: 1px solid #d4af37; border-radius: 10px; font-size: 15px; font-weight: 800; padding: 11px; cursor: pointer; }
   .rpe-hint { font-size: 13px; color: #bdbdbd; margin: -2px 0 10px; }
   .rpe-hint strong { color: #d4af37; }
   .notes-input { font-size: 16px; }
@@ -179,6 +192,12 @@
     <h3 id="potm-name"></h3>
     <p id="potm-desc"></p>
     <button class="btn-gold" id="potm-load">Load this program</button>
+  </section>
+
+  <section class="card" id="lib-card" style="display:none">
+    <h2>READY-MADE WORKOUTS</h2>
+    <div class="lib-tabs" id="lib-tabs"></div>
+    <div id="lib-list"></div>
   </section>
 
   <button class="shuffle-btn" id="shuffle-btn">&#127922; Shuffle my workout</button>
@@ -302,6 +321,8 @@
     SLOTS = data.slots;
     PROGRAMS = data.programs || {};
     GOALS = Array.isArray(data.goals) ? data.goals : [];
+    var LIBRARY = Array.isArray(data.library) ? data.library : [];
+    var libTab = "";
 
     function goalById(id) {
       for (var gi = 0; gi < GOALS.length; gi++) if (GOALS[gi].id === id) return GOALS[gi];
@@ -567,6 +588,68 @@
       };
     }
 
+    // ---- Ready-made workouts ----
+    // Each library entry is one line in the exercise list: name, goal and 7
+    // letters (A–E for slots A–G). Sets / reps / rest / RPE come from the goal;
+    // optional per-slot "overrides" (keyed by slot letter) replace any of them.
+    function libSlots(entry) {
+      var g = goalById(entry.goal);
+      var ov = entry.overrides || {};
+      return SLOTS.map(function (m, i) {
+        var rx = (g && g.slots[i]) || {};
+        var o = ov[m.slot] || {};
+        var pick = LETTERS.indexOf(String(entry.picks || "").charAt(i));
+        function v(k) { return o[k] != null ? String(o[k]) : (rx[k] || ""); }
+        return { o: pick < 0 ? 0 : pick, sets: v("sets"), reps: v("reps"), weight: "", rest: v("rest"), rpe: v("rpe"), cue: v("cue"), notes: o.notes || "" };
+      });
+    }
+
+    function renderLibrary() {
+      var card = document.getElementById("lib-card");
+      var goals = GOALS.filter(function (g) { return LIBRARY.some(function (e) { return e.goal === g.id; }); });
+      if (!goals.length) { card.style.display = "none"; return; }
+      card.style.display = "block";
+      if (!goals.some(function (g) { return g.id === libTab; })) {
+        libTab = goals.some(function (g) { return g.id === state.goal; }) ? state.goal : goals[0].id;
+      }
+      document.getElementById("lib-tabs").innerHTML = goals.map(function (g) {
+        return '<button class="pill' + (g.id === libTab ? " active" : "") + '" data-lib-tab="' + esc(g.id) + '">' + esc(g.label) + "</button>";
+      }).join("");
+      var html = "";
+      LIBRARY.forEach(function (e, idx) {
+        if (e.goal !== libTab) return;
+        var rows = libSlots(e).map(function (sl, i) {
+          return "<li><b>" + esc(SLOTS[i].slot) + "</b><span>" + esc(SLOTS[i].options[sl.o]) + " \u00b7 " + esc(sl.sets) + "\u00d7" + esc(sl.reps) + (sl.rpe ? " @ RPE " + esc(sl.rpe) : "") + "</span></li>";
+        }).join("");
+        html += '<div class="lib-item"><h3>' + esc(e.name) + "</h3>" +
+          (e.desc ? "<p>" + esc(e.desc) + "</p>" : "") +
+          "<details><summary>See the workout</summary><ol>" + rows + "</ol></details>" +
+          '<button class="btn-outline" data-lib="' + idx + '">Load this workout</button></div>';
+      });
+      document.getElementById("lib-list").innerHTML = html;
+    }
+
+    document.getElementById("lib-tabs").addEventListener("click", function (e) {
+      var id = e.target && e.target.getAttribute && e.target.getAttribute("data-lib-tab");
+      if (!id) return;
+      libTab = id;
+      renderLibrary();
+    });
+
+    document.getElementById("lib-list").addEventListener("click", function (e) {
+      var idx = e.target && e.target.getAttribute && e.target.getAttribute("data-lib");
+      if (idx == null) return;
+      var entry = LIBRARY[parseInt(idx, 10)];
+      if (!entry) return;
+      if (!confirm("Load " + entry.name + "? This replaces your current picks.")) return;
+      state.slots = libSlots(entry);
+      state.goal = entry.goal;
+      state.program = entry.name;
+      save();
+      render();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
     document.getElementById("shuffle-btn").addEventListener("click", function () {
       state.slots.forEach(function (st) {
         st.o = Math.floor(Math.random() * 5);
@@ -622,6 +705,7 @@
 
     renderPotm();
     render();
+    renderLibrary();
   }
 
   boot();
