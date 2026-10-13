@@ -88,11 +88,18 @@
   .lib-item:first-child { border-top: none; padding-top: 0; }
   .lib-item h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
   .lib-item p { font-size: 13px; color: #b5b5b5; margin-bottom: 8px; }
-  .lib-item details { font-size: 13px; color: #8a8a8a; margin-bottom: 10px; }
-  .lib-item summary { cursor: pointer; color: #d4af37; font-weight: 700; }
-  .lib-item ol { list-style: none; margin-top: 6px; }
-  .lib-item li { padding: 2px 0; display: flex; gap: 8px; }
-  .lib-item li b { color: #d4af37; flex: 0 0 14px; }
+  .lib-item details, .potm details { font-size: 13px; color: #8a8a8a; margin-bottom: 10px; }
+  .lib-item summary, .potm summary { cursor: pointer; color: #d4af37; font-weight: 700; }
+  .lib-item ol, .potm ol { list-style: none; margin-top: 6px; }
+  .lib-item li, .potm li { padding: 2px 0; display: flex; gap: 8px; }
+  .lib-item li b, .potm li b { color: #d4af37; flex: 0 0 14px; }
+  .potm details { margin: -4px 0 14px; }
+
+  /* Which lift of the pair + how-to link */
+  .lift-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 12px; }
+  .lift-opt { padding: 9px 6px; border-radius: 10px; background: #0a0a0a; border: 1px solid #333; color: #bdbdbd; font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1.25; }
+  .lift-opt.active { border-color: #d4af37; color: #d4af37; background: #1c1a10; }
+  .exercise .demo { display: inline-block; margin-top: 6px; font-size: 13px; font-weight: 700; color: #d4af37; text-decoration: none; }
   .btn-outline { display: block; width: 100%; background: transparent; color: #d4af37; border: 1px solid #d4af37; border-radius: 10px; font-size: 15px; font-weight: 800; padding: 11px; cursor: pointer; }
   /* My Programs */
   .saved-item { display: flex; align-items: center; gap: 8px; border-top: 1px solid #262626; padding: 10px 0; }
@@ -201,6 +208,7 @@
     <div class="kicker-new">PROGRAM OF THE MONTH</div>
     <h3 id="potm-name"></h3>
     <p id="potm-desc"></p>
+    <details id="potm-preview"><summary>See the workout</summary><ol id="potm-rows"></ol></details>
     <button class="btn-gold" id="potm-load">Load this program</button>
   </section>
 
@@ -345,6 +353,28 @@
     function goalById(id) {
       for (var gi = 0; gi < GOALS.length; gi++) if (GOALS[gi].id === id) return GOALS[gi];
       return null;
+    }
+
+    // Each option is a pair of lifts ("Front / Goblet Squat"). The exercise list
+    // carries full names per lift (slot.lifts[o] = [first, second]); the slot
+    // state's `v` (0/1) says which one the lifter is doing. Older exercise lists
+    // without `lifts` fall back to the pair name with no toggle.
+    function liftPair(i, o) {
+      var l = SLOTS[i].lifts;
+      return l && l[o] && l[o].length === 2 ? l[o] : null;
+    }
+    function liftName(i, sl) {
+      var pair = liftPair(i, sl.o);
+      return pair ? pair[sl.v === 1 ? 1 : 0] : SLOTS[i].options[sl.o];
+    }
+    function demoUrl(name) {
+      return "https://www.youtube.com/results?search_query=" + encodeURIComponent(name + " exercise how to proper form");
+    }
+    // 7-line preview: "A  Hack Squat · 4×8–10 @ RPE 8"
+    function previewRows(slots) {
+      return slots.map(function (sl, i) {
+        return "<li><b>" + esc(SLOTS[i].slot) + "</b><span>" + esc(liftName(i, sl)) + " \u00b7 " + esc(sl.sets) + "\u00d7" + esc(sl.reps) + (sl.rpe ? " @ RPE " + esc(sl.rpe) : "") + "</span></li>";
+      }).join("");
     }
 
     // Copy a goal's sets / reps / rest / RPE (+ coaching cue) into every slot.
@@ -516,9 +546,22 @@
           '<section class="card">' +
             '<div class="slot-head"><span class="slot-letter">' + m.slot + '</span><span class="slot-pattern">' + esc(m.pattern) + "</span></div>" +
             '<div class="pills">' + pills + "</div>" +
-            '<div class="exercise"><span class="alt">SELECTED EXERCISE</span>' + esc(m.options[st.o]) + "</div>" +
             (function () {
-              var h = history[m.options[st.o]];
+              var pair = liftPair(i, st.o);
+              var name = liftName(i, st);
+              var box = '<div class="exercise"><span class="alt">SELECTED EXERCISE</span>' + esc(name) +
+                (pair ? '<br><a class="demo" href="' + demoUrl(name) + '" target="_blank" rel="noopener">\u25b6 How to do it</a>' : "") + "</div>";
+              if (pair) {
+                box += '<div class="lift-toggle">' + pair.map(function (nm, vi) {
+                  return '<button class="lift-opt' + ((st.v === 1 ? 1 : 0) === vi ? " active" : "") + '" data-slot="' + i + '" data-v="' + vi + '">' + esc(nm) + "</button>";
+                }).join("") + "</div>";
+              }
+              return box;
+            })() +
+            (function () {
+              // History is kept per lift; entries saved before lifts were split
+              // (keyed by the pair) still show until that lift is logged again.
+              var h = history[liftName(i, st)] || history[m.options[st.o]];
               if (h && h.weight) {
                 return '<div class="last-time">LAST TIME: ' + esc(h.weight) + " lbs \u00d7 " + esc(h.reps) + " · " + fmtDate(h.date) + "</div>";
               }
@@ -567,9 +610,17 @@
     // delegated events for slots (works after re-render)
     document.getElementById("slots").addEventListener("click", function (e) {
       var t = e.target;
+      if (t.classList && t.classList.contains("lift-opt")) {
+        var li = parseInt(t.getAttribute("data-slot"), 10);
+        state.slots[li].v = parseInt(t.getAttribute("data-v"), 10) === 1 ? 1 : 0;
+        save();
+        render();
+        return;
+      }
       if (t.classList && t.classList.contains("pill")) {
         var i = parseInt(t.getAttribute("data-slot"), 10);
         state.slots[i].o = parseInt(t.getAttribute("data-opt"), 10);
+        state.slots[i].v = 0;
         save();
         render();
       }
@@ -614,11 +665,12 @@
       if (!prog) { card.style.display = "none"; return; }
       document.getElementById("potm-name").textContent = prog.name;
       document.getElementById("potm-desc").textContent = prog.desc;
+      document.getElementById("potm-rows").innerHTML = previewRows(prog.slots.map(function (s) { return { o: s.o, v: s.v, sets: s.sets, reps: s.reps, rpe: s.rpe }; }));
       card.style.display = "block";
       document.getElementById("potm-load").onclick = function () {
         if (confirm("Load " + prog.name + "? This replaces your current picks.")) {
           state.slots = prog.slots.map(function (s) {
-            return { o: s.o, sets: s.sets, reps: s.reps, weight: s.weight || "", rest: s.rest, rpe: s.rpe || "", cue: s.cue || "", notes: s.notes };
+            return { o: s.o, v: s.v === 1 ? 1 : 0, sets: s.sets, reps: s.reps, weight: s.weight || "", rest: s.rest, rpe: s.rpe || "", cue: s.cue || "", notes: s.notes };
           });
           state.goal = prog.goal || "";
           save();
@@ -725,9 +777,12 @@
       return SLOTS.map(function (m, i) {
         var rx = (g && g.slots[i]) || {};
         var o = ov[m.slot] || {};
+        // picks: one letter (A–E) per slot. second: the slots (A–G) that use the
+        // second lift of their pair, e.g. "D" = Chin-Up instead of the pulldown.
         var pick = LETTERS.indexOf(String(entry.picks || "").charAt(i));
+        var lift = o.v != null ? (Number(o.v) === 1 ? 1 : 0) : (String(entry.second || "").toUpperCase().indexOf(m.slot) >= 0 ? 1 : 0);
         function v(k) { return o[k] != null ? String(o[k]) : (rx[k] || ""); }
-        return { o: pick < 0 ? 0 : pick, sets: v("sets"), reps: v("reps"), weight: "", rest: v("rest"), rpe: v("rpe"), cue: v("cue"), notes: o.notes || "" };
+        return { o: pick < 0 ? 0 : pick, v: lift, sets: v("sets"), reps: v("reps"), weight: "", rest: v("rest"), rpe: v("rpe"), cue: v("cue"), notes: o.notes || "" };
       });
     }
 
@@ -745,9 +800,7 @@
       var html = "";
       LIBRARY.forEach(function (e, idx) {
         if (e.goal !== libTab) return;
-        var rows = libSlots(e).map(function (sl, i) {
-          return "<li><b>" + esc(SLOTS[i].slot) + "</b><span>" + esc(SLOTS[i].options[sl.o]) + " \u00b7 " + esc(sl.sets) + "\u00d7" + esc(sl.reps) + (sl.rpe ? " @ RPE " + esc(sl.rpe) : "") + "</span></li>";
-        }).join("");
+        var rows = previewRows(libSlots(e));
         html += '<div class="lib-item"><h3>' + esc(e.name) + "</h3>" +
           (e.desc ? "<p>" + esc(e.desc) + "</p>" : "") +
           "<details><summary>See the workout</summary><ol>" + rows + "</ol></details>" +
@@ -780,6 +833,7 @@
     document.getElementById("shuffle-btn").addEventListener("click", function () {
       state.slots.forEach(function (st) {
         st.o = Math.floor(Math.random() * 5);
+        st.v = Math.random() < 0.5 ? 0 : 1;
       });
       save();
       render();
@@ -791,7 +845,7 @@
       var now = new Date().toISOString();
       var logged = 0;
       state.slots.forEach(function (st, i) {
-        var key = SLOTS[i].options[st.o];
+        var key = liftName(i, st);
         // Reps are pre-filled by the goal now, so only a typed weight counts as
         // "done" — otherwise a skipped exercise would wipe its LAST TIME.
         if (st.weight) {
