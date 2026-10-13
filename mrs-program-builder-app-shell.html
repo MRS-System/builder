@@ -16,7 +16,6 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: #0a0a0a; color: #f5f5f5; line-height: 1.5;
     max-width: 520px; margin: 0 auto; min-height: 100vh;
-    padding-bottom: env(safe-area-inset-bottom);
   }
   .gold { color: #d4af37; }
 
@@ -25,13 +24,41 @@
     position: sticky; top: 0; z-index: 50;
     background: rgba(10,10,10,.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #222;
-    padding: 14px 20px; padding-top: calc(14px + env(safe-area-inset-top));
+    padding: 10px 20px; padding-top: calc(10px + env(safe-area-inset-top));
     text-align: center;
   }
-  .app-header .brand { font-size: 11px; letter-spacing: 3px; color: #d4af37; font-weight: 800; }
-  .app-header .title { font-size: 17px; font-weight: 800; margin-top: 2px; }
+  .app-header .brand { font-size: 13px; letter-spacing: 2px; color: #d4af37; font-weight: 800; margin-right: 6px; }
+  .app-header .title { font-size: 17px; font-weight: 800; display: inline; }
 
-  main { padding: 16px 16px 32px; }
+  main { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
+
+  /* Bottom tab bar */
+  .tab-panel[hidden] { display: none; }
+  main:not(.ready) .today, main:not(.ready) #log-btn { display: none; }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    max-width: 520px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: rgba(10,10,10,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid #222;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+  .tabbar[hidden] { display: none; }
+  .tab {
+    background: none; border: none; color: #8a8a8a; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.5px; padding: 6px 0 4px;
+  }
+  .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tab[aria-selected="true"] { color: #d4af37; }
+  .tab-intro { font-size: 15px; color: #d6d6d6; margin: 2px 2px 14px; }
+  .tab-intro strong { color: #d4af37; }
+  .tab-link { color: #d4af37; font-weight: 700; }
+  .rpe-card p { font-size: 14px; color: #b5b5b5; margin-bottom: 12px; }
+  .rpe-scale { list-style: none; margin-bottom: 12px; }
+  .rpe-scale li { display: flex; gap: 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid #222; font-size: 14px; color: #d6d6d6; }
+  .rpe-scale li:first-child { border-top: none; }
+  .rpe-scale b { color: #d4af37; font-size: 18px; flex: 0 0 26px; }
 
   .card {
     background: #141414; border: 1px solid #262626; border-radius: 16px;
@@ -118,6 +145,18 @@
   .saved-item button { flex-shrink: 0; background: transparent; border: 1px solid #333; border-radius: 8px; color: #d6d6d6; font-size: 14px; font-weight: 700; padding: 8px 12px; cursor: pointer; }
   .saved-item button.load { border-color: #d4af37; color: #d4af37; }
   .saved-empty { font-size: 13px; color: #8a8a8a; margin-bottom: 12px; }
+  /* Workout tab: one compact card above the exercises */
+  .today { padding: 14px; }
+  .today-row { display: grid; grid-template-columns: 1fr 76px; gap: 8px; margin-bottom: 10px; }
+  .today .field label { margin-bottom: 4px; }
+  .today .field input { padding: 9px 10px; }
+  .today .goal-pills { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+  .today .goal-pills .pill { font-size: 12px; padding: 8px 0; }
+  .today .goal-desc { font-size: 13px; margin-bottom: 4px; }
+  .today .rpe-explain { font-size: 12px; margin-bottom: 10px; }
+  .today-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .today-actions .btn-outline { padding: 9px; font-size: 14px; }
+  @media (max-width: 360px) { .today .goal-pills { grid-template-columns: 1fr 1fr; } }
   .saved-status { font-size: 13px; color: #d4af37; font-weight: 700; text-align: center; margin-top: 8px; min-height: 1px; }
   .rpe-hint { font-size: 13px; color: #bdbdbd; margin: -2px 0 10px; }
   .rpe-hint strong { color: #d4af37; }
@@ -134,9 +173,10 @@
     color: #8a8a8a; font-size: 15px; font-weight: 700; cursor: pointer;
   }
 
-  footer { text-align: center; padding: 8px 20px 32px; font-size: 12px; color: #555; }
+  footer { text-align: center; padding: 18px 20px 8px; font-size: 12px; color: #555; }
   footer a, .manage-link { color: #d4af37; text-decoration: underline; }
   .manage-link { display: block; text-align: center; margin-top: 12px; font-size: 14px; font-weight: 700; }
+  .manage-small { display: block; text-align: center; margin-top: 14px; font-size: 12px; color: #8a8a8a; text-decoration: underline; }
   footer .gold { font-weight: 700; }
 
   /* Last time + volume */
@@ -158,7 +198,7 @@
 
   /* Install hint */
   #install-hint {
-    position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 100;
+    position: fixed; left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 100;
     background: #1c1a10; border: 1px solid #d4af37; border-radius: 14px;
     padding: 14px 16px; display: none; align-items: center; gap: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,.6);
@@ -190,82 +230,123 @@
 </div>
 
 <header class="app-header">
-  <div class="brand">MRS™ · METABOLIC REBUILD SYSTEM</div>
-  <div class="title">Program Builder</div>
+  <span class="brand">MRS™</span><span class="title">Program Builder</span>
 </header>
 
 <main>
-  <section class="card">
-    <h2>YOUR PROGRAM</h2>
-    <div class="profile-grid">
-      <div class="field"><label>YOUR NAME</label><input id="f-name" type="text" placeholder="Your name" autocomplete="off"></div>
-      <div class="field"><label>PROGRAM</label><input id="f-program" type="text" placeholder="My program" autocomplete="off"></div>
-      <div class="field"><label>WEEK</label><input id="f-week" type="text" inputmode="numeric" placeholder="1" autocomplete="off"></div>
-      <div class="field"><label>CYCLE</label><input id="f-cycle" type="text" inputmode="numeric" placeholder="1" autocomplete="off"></div>
+  <!-- WORKOUT: today's session -->
+  <div class="tab-panel" id="tab-workout" role="tabpanel">
+    <section class="card today">
+      <div class="today-row">
+        <div class="field"><label>PROGRAM</label><input id="f-program" type="text" placeholder="My program" autocomplete="off"></div>
+        <div class="field wk"><label>WEEK</label><input id="f-week" type="text" inputmode="numeric" placeholder="1" autocomplete="off"></div>
+      </div>
+      <div id="goal-card" style="display:none">
+        <div class="goal-pills" id="goal-pills"></div>
+        <p class="goal-desc" id="goal-desc"></p>
+        <p class="rpe-explain"><strong>RPE 8</strong> = 2 more good reps left. That's how heavy to go. <a href="#" class="tab-link" data-tab-go="me">RPE guide</a></p>
+      </div>
+      <div class="today-actions">
+        <button class="btn-outline save-now" id="save-btn-workout">Save</button>
+        <button class="btn-outline" id="shuffle-btn">&#127922; Shuffle</button>
+      </div>
+      <div class="saved-status"></div>
+    </section>
+
+    <div id="slots">
+      <div class="loading"><div class="spinner"></div>Loading your program…</div>
     </div>
-  </section>
 
-  <section class="card" id="goal-card" style="display:none">
-    <h2>YOUR GOAL</h2>
-    <div class="goal-pills" id="goal-pills"></div>
-    <p class="goal-desc" id="goal-desc"></p>
-    <p class="rpe-explain"><strong>RPE</strong> = how hard a set feels, 1&ndash;10. <strong>RPE 8 = you could do 2 more good reps.</strong> Pick a weight that lands you there &mdash; that's how heavy to go.</p>
-  </section>
+    <button class="log-btn" id="log-btn">LOG THIS SESSION</button>
 
-  <section class="card potm" id="potm-card" style="display:none">
-    <div class="kicker-new">PROGRAM OF THE MONTH</div>
-    <h3 id="potm-name"></h3>
-    <p id="potm-desc"></p>
-    <div id="potm-pick" style="display:none">
-      <div class="potm-label">DAY</div>
-      <div class="potm-days" id="potm-days"></div>
-      <div class="potm-label">WEEK</div>
-      <div class="potm-weeks" id="potm-weeks"></div>
-      <p class="week-note" id="potm-week-note"></p>
-    </div>
-    <details id="potm-preview"><summary id="potm-summary">See the workout</summary><ol id="potm-rows"></ol></details>
-    <button class="btn-gold" id="potm-load">Load this program</button>
-  </section>
-
-  <section class="card" id="saved-card" style="display:none">
-    <h2>MY PROGRAMS</h2>
-    <div id="saved-list"></div>
-    <button class="btn-outline" id="save-btn">Save this program</button>
-    <div class="saved-status" id="saved-status"></div>
-  </section>
-
-  <section class="card" id="lib-card" style="display:none">
-    <h2>READY-MADE WORKOUTS</h2>
-    <div class="lib-tabs" id="lib-tabs"></div>
-    <div id="lib-list"></div>
-  </section>
-
-  <button class="shuffle-btn" id="shuffle-btn">&#127922; Shuffle my workout</button>
-
-  <div id="slots">
-    <div class="loading"><div class="spinner"></div>Loading your program…</div>
+    <section class="card volume-card" id="volume-card" style="display:none">
+      <h2>SESSION TOTAL</h2>
+      <div><span class="big" id="volume-num">0</span> <span class="unit">lbs</span></div>
+      <div class="shout-out" id="shout-out"></div>
+    </section>
   </div>
 
-  <button class="log-btn" id="log-btn">LOG THIS SESSION</button>
+  <!-- PROGRAMS: pick what to do -->
+  <div class="tab-panel" id="tab-programs" role="tabpanel" hidden>
+    <p class="tab-intro" id="programs-intro" style="display:none"><strong>Pick a program to start.</strong> Or build your own on the Workout tab.</p>
 
-  <section class="card volume-card" id="volume-card" style="display:none">
-    <h2>SESSION TOTAL</h2>
-    <div><span class="big" id="volume-num">0</span> <span class="unit">lbs</span></div>
-    <div class="shout-out" id="shout-out"></div>
-  </section>
+    <section class="card potm" id="potm-card" style="display:none">
+      <div class="kicker-new">PROGRAM OF THE MONTH</div>
+      <h3 id="potm-name"></h3>
+      <p id="potm-desc"></p>
+      <div id="potm-pick" style="display:none">
+        <div class="potm-label">DAY</div>
+        <div class="potm-days" id="potm-days"></div>
+        <div class="potm-label">WEEK</div>
+        <div class="potm-weeks" id="potm-weeks"></div>
+        <p class="week-note" id="potm-week-note"></p>
+      </div>
+      <details id="potm-preview"><summary id="potm-summary">See the workout</summary><ol id="potm-rows"></ol></details>
+      <button class="btn-gold" id="potm-load">Load this program</button>
+    </section>
 
-  <section class="card combos">
-    <div class="big">78,125</div>
-    <p>unique workout combinations in this builder.<br>You'll never do the same session twice.</p>
-  </section>
+    <section class="card" id="lib-card" style="display:none">
+      <h2>READY-MADE WORKOUTS</h2>
+      <div class="lib-tabs" id="lib-tabs"></div>
+      <div id="lib-list"></div>
+    </section>
 
-  <button class="reset-btn" id="reset-btn">Start a fresh program</button>
+    <section class="card" id="saved-card" style="display:none">
+      <h2>MY PROGRAMS</h2>
+      <div id="saved-list"></div>
+      <button class="btn-outline" id="save-btn">Save this program</button>
+      <div class="saved-status" id="saved-status"></div>
+    </section>
+  </div>
+
+  <!-- ME: set once -->
+  <div class="tab-panel" id="tab-me" role="tabpanel" hidden>
+    <section class="card">
+      <h2>YOU</h2>
+      <div class="profile-grid">
+        <div class="field"><label>YOUR NAME</label><input id="f-name" type="text" placeholder="Your name" autocomplete="off"></div>
+        <div class="field"><label>CYCLE</label><input id="f-cycle" type="text" inputmode="numeric" placeholder="1" autocomplete="off"></div>
+      </div>
+    </section>
+
+    <section class="card rpe-card" id="rpe-card">
+      <h2>WHAT IS RPE?</h2>
+      <p>RPE (rate of perceived exertion) is how hard a set feels on a 1&ndash;10 scale. It's how you know how heavy to go: pick a weight where the last rep lands on the target.</p>
+      <ul class="rpe-scale">
+        <li><b>10</b>Max effort. Not one more rep.</li>
+        <li><b>9</b>1 more good rep left.</li>
+        <li><b>8</b>2 more good reps left.</li>
+        <li><b>7</b>3 more good reps left. Bar moves fast.</li>
+        <li><b>6</b>4+ left. Warm-up or recovery pace.</li>
+      </ul>
+      <p>For timed work (planks, intervals), RPE is just effort out of 10. If a set lands easier than the target, add weight next set. If it lands harder, take some off.</p>
+    </section>
+
+    <section class="card combos">
+      <div class="big">78,125</div>
+      <p>unique workout combinations in this builder.<br>You'll never do the same session twice.</p>
+    </section>
+
+    <button class="reset-btn" id="reset-btn">Start a fresh program</button>
+
+    <footer>
+      <span class="gold">MRS™</span> · Know Your Numbers. Change Your Life.<br>
+      <a href="https://billing.stripe.com/p/login/28EcN4a9G95t5gV3CWcQU00" target="_blank" rel="noopener">Manage or cancel subscription</a>
+    </footer>
+  </div>
 </main>
 
-<footer>
-  <span class="gold">MRS™</span> · Know Your Numbers. Change Your Life.<br>
-  <a href="https://billing.stripe.com/p/login/28EcN4a9G95t5gV3CWcQU00" target="_blank" rel="noopener">Manage or cancel subscription</a>
-</footer>
+<nav class="tabbar" id="tabbar" role="tablist" hidden>
+  <button class="tab" role="tab" data-tab="workout" aria-selected="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12"/></svg>Workout
+  </button>
+  <button class="tab" role="tab" data-tab="programs" aria-selected="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Programs
+  </button>
+  <button class="tab" role="tab" data-tab="me" aria-selected="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Me
+  </button>
+</nav>
 
 <script>
 (function () {
@@ -284,6 +365,7 @@
   var STORE_KEY = "mrs-builder-v1";
   var HISTORY_KEY = "mrs-builder-history-v1";
   var HINT_KEY = "mrs-builder-hint-dismissed";
+  var SEEN_KEY = "mrs-builder-seen"; // set after the first successful open
   var SAVED_KEY = "mrs-builder-saved-v1"; // My Programs: [{name, goal, date, slots}]
   var LETTERS = ["A", "B", "C", "D", "E"];
   var DEFAULT_OPTS = [0, 1, 1, 1, 2, 2, 2]; // matches the sheet's example picks
@@ -321,7 +403,10 @@
     document.getElementById("slots").innerHTML =
       '<section class="card err-card"><h2>' + esc(title) + "</h2><p>" + esc(msg) + '</p>' +
       '<button class="btn-gold" onclick="window.location.reload()">Try again</button>' +
-      (withManage ? '<a class="manage-link" href="' + PORTAL_URL + '" target="_blank" rel="noopener">Manage subscription / update card</a>' : '') +
+      // Billing problem → the big "update card" button. Anything else → a small
+      // plain cancel/manage link, since the tab bar (and Me tab) isn't available yet.
+      (withManage === true ? '<a class="manage-link" href="' + PORTAL_URL + '" target="_blank" rel="noopener">Manage subscription / update card</a>'
+        : '<a class="manage-small" href="' + PORTAL_URL + '" target="_blank" rel="noopener">Manage or cancel subscription</a>') +
       '</section>';
   }
 
@@ -406,6 +491,11 @@
       });
       if (!onlyBlank) st.goal = goalId;
     }
+
+    // First visit (nothing saved on this phone yet) opens on Programs; after
+    // that the app opens on the Workout tab, where they left off.
+    var firstVisit = true;
+    try { firstVisit = !localStorage.getItem(SEEN_KEY) && !localStorage.getItem(STORE_KEY); } catch (e) {}
 
     var state = loadState();
 
@@ -697,7 +787,7 @@
         var out = JSON.parse(JSON.stringify(sl));
         out.rpe = wk.rpeSet ? wk.rpeSet : shiftRpe(sl.rpe, Number(wk.rpe) || 0);
         var n = parseInt(sl.sets, 10);
-        if (!isNaN(n) && wk.sets) out.sets = String(Math.max(2, n + Number(wk.sets)));
+        if (!isNaN(n) && wk.sets && n > 2) out.sets = String(Math.max(2, n + Number(wk.sets)));
         return out;
       });
     }
@@ -733,7 +823,7 @@
           state.goal = prog.goal || "";
           save();
           render();
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          showTab("workout");
         }
       };
     }
@@ -768,9 +858,19 @@
         state.potm = { key: key, day: d };
         save();
         render();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        showTab("workout");
       };
     }
+
+    var potmStamp = currentMonthKey() + ":" + weekOfMonth();
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) return;
+      var now = currentMonthKey() + ":" + weekOfMonth();
+      if (now === potmStamp) return;
+      potmStamp = now;
+      potmSel = null; // re-suggest week (and month's program) for today
+      renderPotm();
+    });
 
     document.getElementById("potm-pick").addEventListener("click", function (e) {
       var t = e.target; if (!t || !t.getAttribute || !potmSel) return;
@@ -808,10 +908,12 @@
       return storeSaved(list);
     }
     function setSavedStatus(msg) {
-      var el = document.getElementById("saved-status");
-      el.textContent = msg;
+      var els = document.querySelectorAll(".saved-status");
+      for (var k = 0; k < els.length; k++) els[k].textContent = msg;
       clearTimeout(setSavedStatus.t);
-      setSavedStatus.t = setTimeout(function () { el.textContent = ""; }, 4000);
+      setSavedStatus.t = setTimeout(function () {
+        for (var k = 0; k < els.length; k++) els[k].textContent = "";
+      }, 4000);
     }
     function renderSaved() {
       document.getElementById("saved-card").style.display = "block";
@@ -826,6 +928,9 @@
         : '<p class="saved-empty">Like a program? Save it here and run it again anytime. Programs you log are saved automatically.</p>';
     }
 
+    document.getElementById("save-btn-workout").addEventListener("click", function () {
+      document.getElementById("save-btn").click();
+    });
     document.getElementById("save-btn").addEventListener("click", function () {
       var name = String(state.program || "").trim();
       if (!name) {
@@ -858,7 +963,7 @@
         state.program = r.name;
         save();
         render();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        showTab("workout");
       } else if (di != null) {
         var rd = list[parseInt(di, 10)];
         if (!rd || !confirm("Delete " + rd.name + " from My Programs?")) return;
@@ -928,7 +1033,7 @@
       state.program = entry.name;
       save();
       render();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      showTab("workout");
     });
 
     document.getElementById("shuffle-btn").addEventListener("click", function () {
@@ -978,7 +1083,8 @@
         state = defaultState();
         save();
         render();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        renderSaved();
+        showTab("programs");
       }
     });
 
@@ -1000,7 +1106,35 @@
     render();
     renderLibrary();
     renderSaved();
+
+    document.querySelector("main").classList.add("ready");
+    document.getElementById("tabbar").hidden = false;
+    try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
+    document.getElementById("programs-intro").style.display = firstVisit ? "block" : "none";
+    showTab(firstVisit ? "programs" : "workout");
   }
+
+  // ---- Bottom tabs: Workout / Programs / Me ----
+  // Panels are only hidden, never re-built, so switching never loses typing.
+  function showTab(name) {
+    ["workout", "programs", "me"].forEach(function (t) {
+      var panel = document.getElementById("tab-" + t);
+      if (panel) panel.hidden = t !== name;
+    });
+    var tabs = document.querySelectorAll("#tabbar .tab");
+    for (var k = 0; k < tabs.length; k++) tabs[k].setAttribute("aria-selected", tabs[k].getAttribute("data-tab") === name ? "true" : "false");
+    window.scrollTo(0, 0);
+  }
+  document.getElementById("tabbar").addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".tab");
+    if (b) showTab(b.getAttribute("data-tab"));
+  });
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("[data-tab-go]");
+    if (!a) return;
+    e.preventDefault();
+    showTab(a.getAttribute("data-tab-go"));
+  });
 
   boot();
 })();
