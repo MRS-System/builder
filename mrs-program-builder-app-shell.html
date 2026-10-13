@@ -95,6 +95,14 @@
   .lib-item li b, .potm li b { color: #d4af37; flex: 0 0 14px; }
   .potm details { margin: -4px 0 14px; }
 
+  /* Program of the Month: Day + Week pickers */
+  .potm-label { font-size: 11px; letter-spacing: 1.5px; color: #8a8a8a; font-weight: 800; margin: 4px 0 6px; }
+  .potm-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .potm-weeks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+  .potm-days .pill, .potm-weeks .pill { font-size: 14px; padding: 9px 0; }
+  .potm .week-note { font-size: 13px; color: #d6d6d6; margin-bottom: 12px; }
+  .potm .week-note strong { color: #d4af37; }
+
   /* Which lift of the pair + how-to link */
   .lift-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 12px; }
   .lift-opt { padding: 9px 6px; border-radius: 10px; background: #0a0a0a; border: 1px solid #333; color: #bdbdbd; font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1.25; }
@@ -208,7 +216,14 @@
     <div class="kicker-new">PROGRAM OF THE MONTH</div>
     <h3 id="potm-name"></h3>
     <p id="potm-desc"></p>
-    <details id="potm-preview"><summary>See the workout</summary><ol id="potm-rows"></ol></details>
+    <div id="potm-pick" style="display:none">
+      <div class="potm-label">DAY</div>
+      <div class="potm-days" id="potm-days"></div>
+      <div class="potm-label">WEEK</div>
+      <div class="potm-weeks" id="potm-weeks"></div>
+      <p class="week-note" id="potm-week-note"></p>
+    </div>
+    <details id="potm-preview"><summary id="potm-summary">See the workout</summary><ol id="potm-rows"></ol></details>
     <button class="btn-gold" id="potm-load">Load this program</button>
   </section>
 
@@ -650,23 +665,66 @@
       return d.getFullYear() + "-" + (m < 10 ? "0" + m : m);
     }
 
-    function activeProgram() {
+    function activeKey() {
       var keys = Object.keys(PROGRAMS).sort();
       var now = currentMonthKey();
       var pick = null;
       keys.forEach(function (k) { if (k <= now) pick = k; });
       if (!pick) pick = keys[keys.length - 1]; // no drop for this month yet: show the latest drop
-      return PROGRAMS[pick];
+      return pick;
+    }
+    function activeProgram() {
+      var k = activeKey();
+      return k ? PROGRAMS[k] : null;
     }
 
+    // ---- 4-week, multi-day programs ----
+    // A month's program can be several days (Day 1/2/3), each written like a
+    // ready-made workout (picks + second + overrides). WEEK_PLAN shapes the
+    // month: e.g. week 1 RPE -1, week 3 RPE +1, week 4 one less set at RPE 6–7.
+    var WEEK_PLAN = Array.isArray(data.weekPlan) && data.weekPlan.length ? data.weekPlan : null;
+
+    function shiftRpe(rpe, delta) {
+      if (!delta) return rpe;
+      return String(rpe || "").replace(/\d+(\.\d+)?/g, function (n) {
+        return String(Math.max(5, Math.min(10, parseFloat(n) + delta)));
+      });
+    }
+    function weekSlots(slots, w) {
+      var wk = WEEK_PLAN && WEEK_PLAN[w];
+      if (!wk) return slots;
+      return slots.map(function (sl) {
+        var out = JSON.parse(JSON.stringify(sl));
+        out.rpe = wk.rpeSet ? wk.rpeSet : shiftRpe(sl.rpe, Number(wk.rpe) || 0);
+        var n = parseInt(sl.sets, 10);
+        if (!isNaN(n) && wk.sets) out.sets = String(Math.max(2, n + Number(wk.sets)));
+        return out;
+      });
+    }
+    function daySlots(prog, d, w) {
+      var day = prog.days[d];
+      return weekSlots(libSlots({ goal: prog.goal, picks: day.picks, second: day.second, overrides: day.overrides }), w);
+    }
+    // Calendar week of the month: 1–7 → week 1 … 22+ → week 4.
+    function weekOfMonth() {
+      return Math.min(3, Math.floor((new Date().getDate() - 1) / 7));
+    }
+    var potmSel = null; // {key, day, week} currently shown on the card
+
     function renderPotm() {
-      var prog = activeProgram();
+      var key = activeKey();
+      var prog = key ? PROGRAMS[key] : null;
       var card = document.getElementById("potm-card");
       if (!prog) { card.style.display = "none"; return; }
       document.getElementById("potm-name").textContent = prog.name;
       document.getElementById("potm-desc").textContent = prog.desc;
-      document.getElementById("potm-rows").innerHTML = previewRows(prog.slots.map(function (s) { return { o: s.o, v: s.v, sets: s.sets, reps: s.reps, rpe: s.rpe }; }));
       card.style.display = "block";
+      var multi = Array.isArray(prog.days) && prog.days.length > 0;
+      document.getElementById("potm-pick").style.display = multi ? "block" : "none";
+      if (multi) { renderPotmDays(key, prog); return; }
+      document.getElementById("potm-summary").textContent = "See the workout";
+      document.getElementById("potm-load").textContent = "Load this program";
+      document.getElementById("potm-rows").innerHTML = previewRows(prog.slots.map(function (s) { return { o: s.o, v: s.v, sets: s.sets, reps: s.reps, rpe: s.rpe }; }));
       document.getElementById("potm-load").onclick = function () {
         if (confirm("Load " + prog.name + "? This replaces your current picks.")) {
           state.slots = prog.slots.map(function (s) {
@@ -679,6 +737,49 @@
         }
       };
     }
+
+    function renderPotmDays(key, prog) {
+      if (!potmSel || potmSel.key !== key) {
+        // Suggest the next day after the one they last loaded this month.
+        var last = state.potm && state.potm.key === key ? state.potm.day : -1;
+        potmSel = { key: key, day: (last + 1) % prog.days.length, week: WEEK_PLAN ? Math.min(weekOfMonth(), WEEK_PLAN.length - 1) : 0 };
+      }
+      var d = potmSel.day, w = potmSel.week;
+      document.getElementById("potm-days").innerHTML = prog.days.map(function (dy, i) {
+        return '<button class="pill' + (i === d ? " active" : "") + '" data-potm-day="' + i + '">Day ' + (i + 1) + "</button>";
+      }).join("");
+      document.getElementById("potm-weeks").innerHTML = WEEK_PLAN ? WEEK_PLAN.map(function (wk, i) {
+        return '<button class="pill' + (i === w ? " active" : "") + '" data-potm-week="' + i + '">Wk ' + (i + 1) + "</button>";
+      }).join("") : "";
+      var wk = WEEK_PLAN && WEEK_PLAN[w];
+      document.getElementById("potm-week-note").innerHTML = wk
+        ? "<strong>Week " + (w + 1) + (wk.label ? " \u00b7 " + esc(wk.label) : "") + "</strong> \u2014 " + esc(wk.note || "")
+        : "";
+      document.getElementById("potm-summary").textContent = "See " + (prog.days[d].name || "Day " + (d + 1));
+      document.getElementById("potm-rows").innerHTML = previewRows(daySlots(prog, d, w));
+      var label = "Day " + (d + 1) + (WEEK_PLAN ? " \u00b7 Week " + (w + 1) : "");
+      document.getElementById("potm-load").textContent = "Load " + label;
+      document.getElementById("potm-load").onclick = function () {
+        if (!confirm("Load " + prog.name + ", " + label + "? This replaces your current picks.")) return;
+        state.slots = daySlots(prog, d, w);
+        state.goal = prog.goal || "";
+        state.program = prog.name + " \u00b7 Day " + (d + 1);
+        state.week = String(w + 1);
+        state.potm = { key: key, day: d };
+        save();
+        render();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      };
+    }
+
+    document.getElementById("potm-pick").addEventListener("click", function (e) {
+      var t = e.target; if (!t || !t.getAttribute || !potmSel) return;
+      var dd = t.getAttribute("data-potm-day"), ww = t.getAttribute("data-potm-week");
+      if (dd != null) potmSel.day = parseInt(dd, 10);
+      else if (ww != null) potmSel.week = parseInt(ww, 10);
+      else return;
+      renderPotm();
+    });
 
     // ---- My Programs: save a program by name and come back to it later ----
     function loadSaved() {
