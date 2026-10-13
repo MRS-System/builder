@@ -135,6 +135,9 @@
   .lift-opt { padding: 9px 6px; border-radius: 10px; background: #0a0a0a; border: 1px solid #333; color: #bdbdbd; font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1.25; }
   .lift-opt.active { border-color: #d4af37; color: #d4af37; background: #1c1a10; }
   .exercise .demo { display: inline-block; margin-top: 6px; font-size: 13px; font-weight: 700; color: #d4af37; text-decoration: none; }
+  .exercise .ask-yt { margin: 6px 0 0 14px; padding: 0; background: none; border: none; font: inherit; font-size: 13px; font-weight: 700; color: #d4af37; cursor: pointer; }
+  .ask-note { font-size: 13px; color: #d6d6d6; background: #1c1a10; border: 1px solid #d4af37; border-radius: 10px; padding: 9px 12px; margin: -4px 0 12px; }
+  .ask-note strong { color: #d4af37; }
   .btn-outline { display: block; width: 100%; background: transparent; color: #d4af37; border: 1px solid #d4af37; border-radius: 10px; font-size: 15px; font-weight: 800; padding: 11px; cursor: pointer; }
   /* My Programs */
   .saved-item { display: flex; align-items: center; gap: 8px; border-top: 1px solid #262626; padding: 10px 0; }
@@ -467,6 +470,26 @@
       var pair = liftPair(i, sl.o);
       return pair ? pair[sl.v === 1 ? 1 : 0] : SLOTS[i].options[sl.o];
     }
+    // Ask YouTube (YouTube's AI chat) has no link that pre-fills a question, so
+    // the button copies a ready-made question and opens YouTube; the lifter taps
+    // "Ask" in the search bar and pastes. US, signed-in, 13+ (YouTube's rules).
+    function askQuestion(name) {
+      return "How do I do a " + name + " with proper form? What are the most common mistakes, and what should I feel working?";
+    }
+    function copyText(text) {
+      var ok = false;
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text; ta.setAttribute("readonly", "");
+        ta.style.position = "fixed"; ta.style.top = "-1000px"; ta.style.fontSize = "16px";
+        document.body.appendChild(ta);
+        ta.select(); ta.setSelectionRange(0, text.length);
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (e) { ok = false; }
+      try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); ok = true; } } catch (e) {}
+      return ok;
+    }
     function demoUrl(name) {
       return "https://www.youtube.com/results?search_query=" + encodeURIComponent(name + " exercise how to proper form");
     }
@@ -655,7 +678,9 @@
               var pair = liftPair(i, st.o);
               var name = liftName(i, st);
               var box = '<div class="exercise"><span class="alt">SELECTED EXERCISE</span>' + esc(name) +
-                (pair ? '<br><a class="demo" href="' + demoUrl(name) + '" target="_blank" rel="noopener">\u25b6 How to do it</a>' : "") + "</div>";
+                (pair ? '<br><a class="demo" href="' + demoUrl(name) + '" target="_blank" rel="noopener">\u25b6 How to do it</a>' +
+                  '<button class="ask-yt" data-slot="' + i + '">\ud83d\udcac Ask YouTube</button>' : "") + "</div>" +
+                '<div class="ask-note" id="ask-note-' + i + '" hidden></div>';
               if (pair) {
                 box += '<div class="lift-toggle">' + pair.map(function (nm, vi) {
                   return '<button class="lift-opt' + ((st.v === 1 ? 1 : 0) === vi ? " active" : "") + '" data-slot="' + i + '" data-v="' + vi + '">' + esc(nm) + "</button>";
@@ -715,6 +740,20 @@
     // delegated events for slots (works after re-render)
     document.getElementById("slots").addEventListener("click", function (e) {
       var t = e.target;
+      if (t.classList && t.classList.contains("ask-yt")) {
+        var ai = parseInt(t.getAttribute("data-slot"), 10);
+        var q = askQuestion(liftName(ai, state.slots[ai]));
+        var copied = copyText(q);
+        window.open("https://www.youtube.com/", "_blank", "noopener");
+        var note = document.getElementById("ask-note-" + ai);
+        if (note) {
+          note.innerHTML = copied
+            ? "<strong>Question copied \u2713</strong> In YouTube, tap <strong>Ask</strong> in the search bar, then paste."
+            : "In YouTube, tap <strong>Ask</strong> in the search bar and ask: \u201c" + esc(q) + "\u201d";
+          note.hidden = false;
+        }
+        return;
+      }
       if (t.classList && t.classList.contains("lift-opt")) {
         var li = parseInt(t.getAttribute("data-slot"), 10);
         state.slots[li].v = parseInt(t.getAttribute("data-v"), 10) === 1 ? 1 : 0;
